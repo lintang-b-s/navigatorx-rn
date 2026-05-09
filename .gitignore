@@ -8,36 +8,59 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+*.tsbuildinfo
 
-# Native
-.kotlin/
-*.orig.*
+# Native (Expo Managed)
+/ios/
+/android/
+
+# Native artifacts
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.orig.*
+*.aar
+*.jar
+temp_aar/
 
 # Metro
 .metro-health-check*
 
-# debug
+# Logs
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+build.log
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # macOS
 .DS_Store
 *.pem
 
-# local env files
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env*.local
 
-# typescript
-*.tsbuildinfo
+# Tool-specific
+.agents/
+notes/
 
-app-example
-
-# generated native folders
-/ios
-/android
+# Go/Wasm artifacts (if applicable)
+*.wasm
+pkg/mobile/mobile.aar
+pkg/mobile/mobile-sources.jar

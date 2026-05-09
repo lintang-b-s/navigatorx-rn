@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["MapMatcherModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.mapmatcher.MapMatcherModule"]
+  }
+}

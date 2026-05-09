@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Platform-specific font families (Tailwind v3 compatible) */
+@layer base {
+  :root {
+    --font-mono: monospace;
+    --font-serif: serif;
+    --font-sans: system-ui;
+  }
+}

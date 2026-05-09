@@ -1,0 +1,14 @@
+export const THROTTLE_DISTANCE_THRESHOLD = 4; // meters
+export const EPS = 1e-9;
+export const INVALID_LAT = 91;
+export const INVALID_LON = 181;
+export const RAD_TO_DEG = 180 / Math.PI;
+export const DEFAULT_CONSTANT_SPEED = 8.3333; // m/s (approx 30 km/h)
+export const MAP_MATCH_SAMPLING_INTERVAL = 1.0; // seconds
+export const LOST_GPS_THRESHOLD = 2000; // ms
+export const MIN_SPEED_THRESHOLD = 1.5; // m/s (approx 4.7 km/h)
+export const UPDATE_NAVIGATION_STATE_THRESHOLD_MS = 25 // ms
+export const MIN_ANIMATION_DURATION = 0.05 // second (50ms)
+export const MAX_ANIMATION_DURATION = 1 // seconds
+export const USER_HAS_ARRIVED_DESTINATION_DISTANCE = 15 // meter
+export const UPDATE_TURN_INSTRUCTION_DISTANCE_MIN = 1 // meter 

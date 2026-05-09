@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<!-- License: CC Attribution. Made by wishforge.games: https://www.wishforge.games/ -->
+<svg version="1.1" id="Icons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+    width="32" height="32" viewBox="0 0 32 32" xml:space="preserve">
+    <style type="text/css">
+        .st0 {
+            fill: #00B0EB;
+            stroke: #00B0EB;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-miterlimit: 10;
+        }
+    </style>
+    <polygon class="st0" points="16,3 3,29 16,24 29,29 " />
+</svg>
