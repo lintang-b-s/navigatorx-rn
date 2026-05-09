@@ -4,9 +4,11 @@ import {
   DEFAULT_CONSTANT_SPEED,
   INVALID_LAT,
   INVALID_LON,
+  LOST_GPS_THRESHOLD,
   MAX_ANIMATION_DURATION,
   MIN_ANIMATION_DURATION,
   MIN_SPEED_THRESHOLD,
+  MAP_MATCH_SAMPLING_INTERVAL,
   THROTTLE_DISTANCE_THRESHOLD,
 } from "../lib/constants";
 import { Candidate, Coord, Gps } from "../lib/mapmatchApi";
@@ -90,6 +92,9 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
   const animStartTimeRef = useRef<number>(0);
   const animDurationRef = useRef<number>(0.5);
 
+  // Track last GPS update time for dead reckoning timeout
+  const lastGpsUpdateTimeRef = useRef<number>(0);
+
   useEffect(() => {
     if (!routeStarted) {
       // Reset state when navigation stops
@@ -100,6 +105,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       lastBearing.current = 0.0;
       prevGps.current = undefined;
       deadReckoning.current = false;
+      lastGpsUpdateTimeRef.current = 0;
       setNavigationState((prev) => ({
         ...prev,
         matchedGpsLoc: undefined,
@@ -114,17 +120,17 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
 
     let watchSubscription: Location.LocationSubscription | null = null;
     let simulationInterval: ReturnType<typeof setInterval> | null = null;
-    let lastGpsTimestamp = Date.now();
     let prevTime: Date = new Date();
 
     const handleMapMatchResponse = (resp: MapMatchResponseData) => {
       try {
+        // FIX: Use && instead of || (match FE logic: both must be invalid to reset)
         if (
           !resp ||
           !resp.matched_gps_point ||
           !resp.matched_gps_point.matched_coord ||
-          resp.matched_gps_point.matched_coord.lat === INVALID_LAT ||
-          resp.matched_gps_point.matched_coord.lon === INVALID_LON
+          (resp.matched_gps_point.matched_coord.lat === INVALID_LAT &&
+            resp.matched_gps_point.matched_coord.lon === INVALID_LON)
         ) {
           // Reset — matcher lost track
           mapMatchStep.current = 1;
@@ -188,6 +194,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         } else {
           // Smooth interpolation via refs (replaces GSAP)
           let duration = 0.5;
+          // FIX: Match FE logic — use both prevGps and current GPS time for duration
           if (prevGps.current?.time) {
             const prevMs =
               prevGps.current.time instanceof Date
@@ -231,7 +238,6 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     const processGpsUpdate = async (location: {
       coords: { latitude: number; longitude: number; speed?: number | null };
     }) => {
-      lastGpsTimestamp = Date.now();
       const currentTime = new Date();
       deadReckoning.current = false;
       let deltaTime = 0;
@@ -240,8 +246,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       let distance = 1;
       if (
         location.coords.speed !== null &&
-        location.coords.speed !== undefined &&
-        location.coords.speed >= 0
+        location.coords.speed !== undefined
       ) {
         speed = location.coords.speed;
       } else if (mapMatchStep.current > 1 && prevGps.current) {
@@ -272,7 +277,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         dead_reckoning: false,
       };
 
-      // Speed threshold: skip if stationary
+      // Speed threshold: skip if stationary (but not the first step)
       if (
         (speed < MIN_SPEED_THRESHOLD ||
           speedMeanK.current < MIN_SPEED_THRESHOLD) &&
@@ -282,12 +287,15 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         return;
       }
 
+      // Update last GPS time for dead reckoning detection
+      lastGpsUpdateTimeRef.current = Date.now();
+
       // Load tile asynchronously (non-blocking)
       void nativeMapMatcher.loadTile(
         location.coords.latitude,
         location.coords.longitude,
       );
-     
+
       // Perform map matching
       const resp = nativeMapMatcher.onlineMapMatch(
         { ...currentGps },
@@ -305,6 +313,56 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       setSpeed(currentGps.speed);
       prevGps.current = currentGps;
       prevTime = currentTime;
+    };
+
+    /**
+     * Dead reckoning handler — called when GPS signal is lost for too long.
+     * Matches FE logic: predicts position using last known speed/direction.
+     */
+    const performDeadReckoning = () => {
+      const now = Date.now();
+      if (
+        prevGps.current &&
+        prevGps.current.time instanceof Date &&
+        now - prevGps.current.time.getTime() > LOST_GPS_THRESHOLD &&
+        !deadReckoning.current
+      ) {
+        deadReckoning.current = true;
+        const currentTime = new Date();
+
+        const deadReckonedGps: Gps = {
+          lat: prevGps.current.lat,
+          lon: prevGps.current.lon,
+          speed: DEFAULT_CONSTANT_SPEED,
+          delta_time: prevTime
+            ? (currentTime.getTime() - prevTime.getTime()) / 1000.0
+            : MAP_MATCH_SAMPLING_INTERVAL,
+          time: currentTime,
+          dead_reckoning: true,
+        };
+
+        // Load tile for dead reckoned position
+        void nativeMapMatcher.loadTile(
+          deadReckonedGps.lat,
+          deadReckonedGps.lon,
+        );
+
+        const resp = nativeMapMatcher.onlineMapMatch(
+          deadReckonedGps,
+          mapMatchStep.current,
+          candidates.current,
+          speedMeanK.current,
+          speedStdK.current,
+          lastBearing.current,
+        );
+
+        if (resp) handleMapMatchResponse(resp);
+
+        mapMatchStep.current += 1;
+        setRawGpsLoc({ lat: deadReckonedGps.lat, lon: deadReckonedGps.lon });
+        setSpeed(deadReckonedGps.speed);
+        prevTime = currentTime;
+      }
     };
 
     const startTracking = async () => {
@@ -345,6 +403,24 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
             processGpsUpdate(location);
           },
         );
+
+        // Dead reckoning check interval (matches FE's error callback pattern)
+        // Runs every second to detect GPS loss beyond LOST_GPS_THRESHOLD
+        const deadReckonInterval = setInterval(() => {
+          if (
+            prevGps.current?.time instanceof Date &&
+            !deadReckoning.current
+          ) {
+            const lastUpdateAge =
+              Date.now() - prevGps.current.time.getTime();
+            if (lastUpdateAge > LOST_GPS_THRESHOLD) {
+              performDeadReckoning();
+            }
+          }
+        }, 1000);
+
+        // Store interval reference for cleanup
+        (watchSubscription as any)._deadReckonInterval = deadReckonInterval;
       }
     };
 
@@ -352,6 +428,10 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
 
     return () => {
       watchSubscription?.remove();
+      // Clear dead reckoning interval if attached
+      if ((watchSubscription as any)._deadReckonInterval) {
+        clearInterval((watchSubscription as any)._deadReckonInterval);
+      }
       if (simulationInterval) clearInterval(simulationInterval);
     };
   }, [routeStarted, isSimulation, simulation.data]);
