@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
 import { DEFAULT_CONSTANT_SPEED } from "../lib/constants";
 import { Candidate, Coord, Gps } from "../lib/mapmatchApi";
 import { nativeMapMatcher } from "../lib/nativeMapMatcher";
@@ -19,6 +20,14 @@ function showToast(msg: string) {
  * Manages route data, active route, source/destination, navigation lifecycle.
  */
 export function useNavigation() {
+  // === Reanimated Shared Values for smooth UI thread animations ===
+  const animLat = useSharedValue(0);
+  const animLon = useSharedValue(0);
+  const animHeading = useSharedValue(0);
+
+  // MapLibre Camera Reference for direct control
+  const cameraRef = useRef<any>(null);
+
   // === Refs for high-frequency updates ===
   const isReroutingRef = useRef(false);
   const routeDataRef = useRef<RouteCRPResponse[] | undefined>(undefined);
@@ -54,7 +63,6 @@ export function useNavigation() {
     distanceTraveled: 0,
   });
 
-  const [isSimulation, setIsSimulation] = useState(false);
   const [rawGpsLoc, setRawGpsLoc] = useState<Coord>();
   const [speed, setSpeed] = useState(0);
 
@@ -274,6 +282,10 @@ export function useNavigation() {
     currentGpsLocRef,
     currentHeadingRef,
     lastMatchedPointRef,
+    animLat,
+    animLon,
+    animHeading,
+    cameraRef,
     startTimeRef,
     totalDistanceTraveledRef,
     candidates,
@@ -294,8 +306,6 @@ export function useNavigation() {
     setRouteStarted,
     navigationState,
     setNavigationState,
-    isSimulation,
-    setIsSimulation,
     rawGpsLoc,
     setRawGpsLoc,
     speed,

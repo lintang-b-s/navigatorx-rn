@@ -1,15 +1,15 @@
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Platform,
-    StatusBar,
-    Text,
-    View,
+  ActivityIndicator,
+  Platform,
+  StatusBar,
+  Text,
+  View,
 } from "react-native";
 import {
-    SafeAreaProvider,
-    useSafeAreaInsets,
+  SafeAreaProvider,
+  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { MapComponent } from "../components/MapComponent";
 import { NavigationFooter } from "../components/NavigationFooter";
@@ -68,11 +68,25 @@ function NavigationScreenInner() {
     mapMatchStep: nav.mapMatchStep,
     deadReckoning: nav.deadReckoning,
     isInitialReroutePerformed: nav.isInitialReroutePerformed,
-    isSimulation: nav.isSimulation,
+    routeDataRef: nav.routeDataRef,
+    activeRouteRef: nav.activeRouteRef,
+    snappedEdgeIDRef: nav.snappedEdgeIDRef,
+    destinationLoc: nav.destinationLoc,
+    hasArrived: nav.hasArrived,
     setSnappedEdgeID: nav.setSnappedEdgeID,
     setNavigationState: nav.setNavigationState,
     setRawGpsLoc: nav.setRawGpsLoc,
     setSpeed: nav.setSpeed,
+    setRouteStarted: nav.setRouteStarted,
+    setRouteData: nav.setRouteData,
+    setPolylineData: nav.setPolylineData,
+    setAlternativeRoutesLineData: nav.setAlternativeRoutesLineData,
+    setActiveRoute: nav.setActiveRoute,
+    setNextTurnIndex: nav.setNextTurnIndex,
+    animLat: nav.animLat,
+    animLon: nav.animLon,
+    animHeading: nav.animHeading,
+    cameraRef: nav.cameraRef,
   });
 
   // --- Search Logic ---
@@ -270,7 +284,11 @@ function NavigationScreenInner() {
         routeDataCRP={nav.routeData}
         routeStarted={nav.routeStarted}
         currentGpsLocRef={nav.currentGpsLocRef}
-        currentHeadingRef={nav.currentHeadingRef}
+        userHeading={nav.navigationState.matchedHeading}
+        animLat={nav.animLat}
+        animLon={nav.animLon}
+        animHeading={nav.animHeading}
+        cameraRef={nav.cameraRef}
         rawGpsLoc={nav.rawGpsLoc}
         nextTurnIndex={nav.nextTurnIndex}
         nextTurnTrigger={nav.nextTurnTrigger}

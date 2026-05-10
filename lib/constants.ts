@@ -1,4 +1,4 @@
-export const THROTTLE_DISTANCE_THRESHOLD = 4; // meters
+export const THROTTLE_DISTANCE_THRESHOLD = 2; // meters
 export const EPS = 1e-9;
 export const INVALID_LAT = 91;
 export const INVALID_LON = 181;

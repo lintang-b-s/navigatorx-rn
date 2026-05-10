@@ -1,5 +1,10 @@
-import { useEffect } from "react";
+import { useCallback, useRef } from "react";
 import { Platform, ToastAndroid } from "react-native";
+import {
+    useAnimatedReaction,
+    useSharedValue,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import {
     UPDATE_NAVIGATION_STATE_THRESHOLD_MS,
     UPDATE_TURN_INSTRUCTION_DISTANCE_MIN,
@@ -15,12 +20,12 @@ import { NavigationState } from "../lib/types";
 import { haversineDistance } from "../lib/util";
 
 const normalizeBearing = (bearing: number) => {
+  "worklet";
   return ((bearing % 360) + 360) % 360;
 };
 
 /**
  * Type representing the return value of useNavigation hook.
- * Using a partial interface to avoid circular dependencies.
  */
 interface NavigationHookResult {
   routeStarted: boolean;
@@ -44,17 +49,17 @@ interface NavigationHookResult {
   setAlternativeRoutesLineData: (data: any[]) => void;
   setActiveRoute: (index: number) => void;
   setNextTurnIndex: (index: number) => void;
+  animLat: any;
+  animLon: any;
+  animHeading: any;
 }
 
 /**
- * 60fps sync loop that reads refs and updates UI state at a throttled rate.
- * Ports the requestAnimationFrame sync effect from page.tsx.
+ * High-performance sync loop using Reanimated to update UI state at a throttled rate.
  */
 export function useNavigationSync(nav: NavigationHookResult) {
   const {
     routeStarted,
-    currentGpsLocRef,
-    currentHeadingRef,
     snappedEdgeIDRef,
     routeDataRef,
     activeRouteRef,
@@ -62,10 +67,8 @@ export function useNavigationSync(nav: NavigationHookResult) {
     totalDistanceTraveledRef,
     mapMatchStep,
     hasArrived,
-    lastMatchedPointRef,
     navigationState,
     setNavigationState,
-    setSnappedEdgeID,
     destinationLoc,
     setRouteStarted,
     setRouteData,
@@ -73,142 +76,164 @@ export function useNavigationSync(nav: NavigationHookResult) {
     setAlternativeRoutesLineData,
     setActiveRoute,
     setNextTurnIndex,
+    animLat,
+    animLon,
+    animHeading,
   } = nav;
 
-  useEffect(() => {
-    if (!routeStarted) return;
+  // Tracking refs for the sync logic (on JS thread)
+  const lastUpdateTimestamp = useRef(0);
+  const lastLat = useRef(0);
+  const lastLon = useRef(0);
+  const lastH = useRef(0);
+  const lastDist = useRef(0);
+  const lastDirIndex = useRef(-1);
 
-    let frameId: number;
-    let lastLat = 0;
-    let lastLon = 0;
-    let lastH = 0;
-    let lastDist = 0;
-    let lastDirIndex = -1;
-    let lastUpdateTimestamp = 0;
+  const syncLogic = useCallback((curLat: number, curLon: number, curH: number) => {
+    let updatedState: Partial<NavigationState> = {};
+    let stateChanged = false;
 
-    const sync = () => {
-      if (currentGpsLocRef.current) {
-        const curLat = currentGpsLocRef.current.lat;
-        const curLon = currentGpsLocRef.current.lon;
-        const curH = normalizeBearing(currentHeadingRef.current);
+    const usedRoute = routeDataRef.current?.[activeRouteRef.current];
+    if (usedRoute) {
+      const usedRouteDirections = usedRoute.driving_directions;
 
-        let updatedState: Partial<NavigationState> = {};
-        let stateChanged = false;
+      // 1. Identify turn instruction index
+      const directionsIndex = getCurrentUserDirectionIndex({
+        snappedEdgeID: snappedEdgeIDRef.current,
+        drivingDirections: usedRouteDirections,
+      });
 
-        const usedRoute = routeDataRef.current?.[activeRouteRef.current];
-        if (usedRoute) {
-          const usedRouteDirections = usedRoute.driving_directions;
-
-          // 1. Identify which turn instruction the user is currently in
-          const directionsIndex = getCurrentUserDirectionIndex({
-            snappedEdgeID: snappedEdgeIDRef.current,
-            drivingDirections: usedRouteDirections,
-          });
-
-          // When rerouting, skip initial "Head [Direction]" instruction at index 0
-          let targetIndex = directionsIndex;
-          if (
-            mapMatchStep.current > 1 &&
-            targetIndex === 0 &&
-            usedRouteDirections.length > 1
-          ) {
-            targetIndex = 1;
-          }
-
-          if (directionsIndex !== lastDirIndex || mapMatchStep.current > 1) {
-            updatedState.currentDirectionIndex = targetIndex;
-            lastDirIndex = directionsIndex;
-            stateChanged = true;
-          }
-
-          // 2. Calculate distance to the next turn point
-          const nextTurnPoint =
-            targetIndex >= 0 && usedRouteDirections[targetIndex]?.turn_point
-              ? usedRouteDirections[targetIndex].turn_point
-              : {
-                  lat: destinationLoc?.osm_object.lat ?? curLat,
-                  lon: destinationLoc?.osm_object.lon ?? curLon,
-                };
-
-          const newDist =
-            getDistanceFromUserToNextTurn({
-              matchedGpsLoc: { lat: curLat, lon: curLon },
-              nextTurnPoint,
-            }) * 1000.0; // Convert KM to Meters
-
-          const timeSpent = startTimeRef.current
-            ? (new Date().getTime() - startTimeRef.current.getTime()) / 60000
-            : 0;
-
-          if (
-            Math.abs(newDist - lastDist) > UPDATE_TURN_INSTRUCTION_DISTANCE_MIN
-          ) {
-            updatedState.distanceFromNextTurnPoint = newDist;
-            lastDist = newDist;
-            stateChanged = true;
-          }
-
-          updatedState.timeSpent = timeSpent;
-          updatedState.distanceTraveled = totalDistanceTraveledRef.current;
-          stateChanged = true;
-
-          // Arrival check
-          if (destinationLoc && !hasArrived.current) {
-            const distToDest =
-              haversineDistance(
-                curLat,
-                curLon,
-                destinationLoc.osm_object.lat,
-                destinationLoc.osm_object.lon,
-              ) * 1000;
-
-            if (distToDest < USER_HAS_ARRIVED_DESTINATION_DISTANCE) {
-              hasArrived.current = true;
-              if (Platform.OS === "android") {
-                ToastAndroid.show(
-                  "You have arrived at your destination!",
-                  ToastAndroid.LONG,
-                );
-              }
-              setRouteStarted(false);
-              setRouteData(undefined);
-              setPolylineData(undefined);
-              setAlternativeRoutesLineData([]);
-              setActiveRoute(0);
-              setNextTurnIndex(-1);
-            }
-          }
-        }
-
-        // Throttled state update for UI re-render
-        const posChanged =
-          Math.abs(curLat - lastLat) > 0.000001 ||
-          Math.abs(curLon - lastLon) > 0.000001;
-        const headingChanged = Math.abs(curH - lastH) > 2;
-
-        if (posChanged || headingChanged) {
-          updatedState.matchedGpsLoc = { lat: curLat, lon: curLon };
-          updatedState.matchedHeading = curH;
-          lastLat = curLat;
-          lastLon = curLon;
-          lastH = curH;
-          stateChanged = true;
-        }
-
-        const now = Date.now();
-        if (
-          stateChanged &&
-          now - lastUpdateTimestamp > UPDATE_NAVIGATION_STATE_THRESHOLD_MS
-        ) {
-          setNavigationState((prev) => ({ ...prev, ...updatedState }));
-          lastUpdateTimestamp = now;
-        }
+      let targetIndex = directionsIndex;
+      if (
+        mapMatchStep.current > 1 &&
+        targetIndex === 0 &&
+        usedRouteDirections.length > 1
+      ) {
+        targetIndex = 1;
       }
 
-      frameId = requestAnimationFrame(sync);
-    };
+      if (directionsIndex !== lastDirIndex.current || mapMatchStep.current > 1) {
+        updatedState.currentDirectionIndex = targetIndex;
+        lastDirIndex.current = directionsIndex;
+        stateChanged = true;
+      }
 
-    frameId = requestAnimationFrame(sync);
-    return () => cancelAnimationFrame(frameId);
-  }, [routeStarted]);
+      // 2. Calculate distance to next turn
+      const nextTurnPoint =
+        targetIndex >= 0 && usedRouteDirections[targetIndex]?.turn_point
+          ? usedRouteDirections[targetIndex].turn_point
+          : {
+              lat: destinationLoc?.osm_object.lat ?? curLat,
+              lon: destinationLoc?.osm_object.lon ?? curLon,
+            };
+
+      const newDist =
+        getDistanceFromUserToNextTurn({
+          matchedGpsLoc: { lat: curLat, lon: curLon },
+          nextTurnPoint,
+        }) * 1000.0;
+
+      const timeSpent = startTimeRef.current
+        ? (new Date().getTime() - startTimeRef.current.getTime()) / 60000
+        : 0;
+
+      if (
+        Math.abs(newDist - lastDist.current) > UPDATE_TURN_INSTRUCTION_DISTANCE_MIN
+      ) {
+        updatedState.distanceFromNextTurnPoint = newDist;
+        lastDist.current = newDist;
+        stateChanged = true;
+      }
+
+      updatedState.timeSpent = timeSpent;
+      updatedState.distanceTraveled = totalDistanceTraveledRef.current;
+      stateChanged = true;
+
+      // Arrival check
+      if (destinationLoc && !hasArrived.current) {
+        const distToDest =
+          haversineDistance(
+            curLat,
+            curLon,
+            destinationLoc.osm_object.lat,
+            destinationLoc.osm_object.lon,
+          ) * 1000;
+
+        if (distToDest < USER_HAS_ARRIVED_DESTINATION_DISTANCE) {
+          hasArrived.current = true;
+          if (Platform.OS === "android") {
+            ToastAndroid.show(
+              "You have arrived at your destination!",
+              ToastAndroid.LONG,
+            );
+          }
+          setRouteStarted(false);
+          setRouteData(undefined);
+          setPolylineData(undefined);
+          setAlternativeRoutesLineData([]);
+          setActiveRoute(0);
+          setNextTurnIndex(-1);
+          return; // Stop processing if arrived
+        }
+      }
+    }
+
+    // Throttled state update for UI re-render
+    const posChanged =
+      Math.abs(curLat - lastLat.current) > 0.000001 ||
+      Math.abs(curLon - lastLon.current) > 0.000001;
+    const headingChanged = Math.abs(curH - lastH.current) > 2;
+
+    if (posChanged || headingChanged) {
+      updatedState.matchedGpsLoc = { lat: curLat, lon: curLon };
+      updatedState.matchedHeading = curH;
+      lastLat.current = curLat;
+      lastLon.current = curLon;
+      lastH.current = curH;
+      stateChanged = true;
+    }
+
+    if (stateChanged) {
+      setNavigationState((prev) => ({ ...prev, ...updatedState }));
+    }
+  }, [
+    routeDataRef,
+    activeRouteRef,
+    snappedEdgeIDRef,
+    mapMatchStep,
+    destinationLoc,
+    startTimeRef,
+    totalDistanceTraveledRef,
+    hasArrived,
+    setNavigationState,
+    setRouteStarted,
+    setRouteData,
+    setPolylineData,
+    setAlternativeRoutesLineData,
+    setActiveRoute,
+    setNextTurnIndex,
+  ]);
+
+  const lastReactionTimestamp = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => {
+      if (!routeStarted) return null;
+      return {
+        lat: animLat.value,
+        lon: animLon.value,
+        heading: normalizeBearing(animHeading.value),
+      };
+    },
+    (data) => {
+      if (!data || !data.lat || !data.lon) return;
+
+      const now = Date.now();
+      if (now - lastReactionTimestamp.value > UPDATE_NAVIGATION_STATE_THRESHOLD_MS) {
+        lastReactionTimestamp.value = now;
+        scheduleOnRN(syncLogic, data.lat, data.lon, data.heading);
+      }
+    },
+    [routeStarted, syncLogic]
+  );
 }

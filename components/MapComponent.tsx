@@ -2,20 +2,20 @@ import { Ionicons } from "@expo/vector-icons";
 import * as MapLibre from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    Dimensions,
-    Image,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { Coord } from "../lib/mapmatchApi";
 import { project, unproject } from "../lib/util";
@@ -31,7 +31,11 @@ export interface MapComponentProps {
   nextTurnTrigger?: number;
   routeStarted?: boolean;
   currentGpsLocRef?: React.RefObject<Coord | null>;
-  currentHeadingRef?: React.RefObject<number>;
+  userHeading?: number;
+  animLat?: any;
+  animLon?: any;
+  animHeading?: any;
+  cameraRef?: React.RefObject<any>;
   triggerGeolocate?: number;
   boundingBoxGeoJSON?: any;
   rawGpsLoc?: Coord;
@@ -161,7 +165,6 @@ export const MapComponent = React.memo(function MapComponent(
     pitch: 0,
   });
 
-  const cameraRef = useRef<any>(null);
   const mapRef = useRef<MapLibre.MapRef>(null);
   const userPosition = MapLibre.useCurrentPosition();
 
@@ -183,7 +186,7 @@ export const MapComponent = React.memo(function MapComponent(
       if (location.coords) {
         const { latitude, longitude } = location.coords;
         props.onUserLocationUpdateHandler?.(latitude, longitude);
-        cameraRef.current?.flyTo({
+        props.cameraRef?.current?.flyTo({
           center: [longitude, latitude],
           zoom: 17,
           duration: 500,
@@ -197,7 +200,7 @@ export const MapComponent = React.memo(function MapComponent(
   // Zoom in/out handlers
   const handleZoomIn = () => {
     const newZoom = Math.min(viewState.zoom + 1, 20);
-    cameraRef.current?.flyTo({
+    props.cameraRef?.current?.flyTo({
       center: [viewState.longitude, viewState.latitude],
       zoom: newZoom,
       duration: 300,
@@ -206,7 +209,7 @@ export const MapComponent = React.memo(function MapComponent(
 
   const handleZoomOut = () => {
     const newZoom = Math.max(viewState.zoom - 1, 3);
-    cameraRef.current?.flyTo({
+    props.cameraRef?.current?.flyTo({
       center: [viewState.longitude, viewState.latitude],
       zoom: newZoom,
       duration: 300,
@@ -219,7 +222,7 @@ export const MapComponent = React.memo(function MapComponent(
     const coords = props.lineData.geometry.coordinates;
     if (coords.length > 0) {
       const fittedViewState = getRouteFittedViewState(coords);
-      cameraRef.current?.flyTo({
+      props.cameraRef?.current?.flyTo({
         center: fittedViewState.centerCoordinate,
         zoom: fittedViewState.zoomLevel,
         duration: 1000,
@@ -239,7 +242,7 @@ export const MapComponent = React.memo(function MapComponent(
       turn &&
       !props.routeStarted
     ) {
-      cameraRef.current?.flyTo({
+      props.cameraRef?.current?.flyTo({
         center: [turn.turn_point.lon, turn.turn_point.lat],
         zoom: 18,
         duration: 500,
@@ -367,52 +370,6 @@ export const MapComponent = React.memo(function MapComponent(
   // Use higher base opacity so turn icons are clearly visible even at lower zoom levels
   const turnOpacity = Math.min(1, 0.5 + 0.5 * zoomBasedTurnScale);
 
-  // Imperative 60FPS camera follow loop
-  useEffect(() => {
-    if (!props.routeStarted) return;
-
-    let frameId: number;
-    let lastLon = NaN;
-    let lastLat = NaN;
-    let lastHeading = NaN;
-    const screenHeight = Dimensions.get("window").height;
-
-    const update = () => {
-      if (props.currentGpsLocRef?.current) {
-        const newLon = props.currentGpsLocRef.current.lon;
-        const newLat = props.currentGpsLocRef.current.lat;
-        const newHeading = props.currentHeadingRef?.current || 0;
-
-        if (
-          newLon !== 0 &&
-          newLat !== 0 &&
-          (newLon !== lastLon ||
-            newLat !== lastLat ||
-            newHeading !== lastHeading)
-        ) {
-          cameraRef.current?.flyTo({
-            center: [newLon, newLat],
-            zoom: 17,
-            duration: 0,
-            padding: {
-              paddingTop: screenHeight * (2 / 3),
-              paddingBottom: 0,
-              paddingLeft: 0,
-              paddingRight: 0,
-            },
-          });
-          lastLon = newLon;
-          lastLat = newLat;
-          lastHeading = newHeading;
-        }
-      }
-      frameId = requestAnimationFrame(update);
-    };
-
-    frameId = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(frameId);
-  }, [props.routeStarted]);
-
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <MapLibre.Map
@@ -442,7 +399,7 @@ export const MapComponent = React.memo(function MapComponent(
         }}
       >
         <MapLibre.Camera
-          ref={cameraRef}
+          ref={props.cameraRef as any}
           initialViewState={{
             center: [viewState.longitude, viewState.latitude],
             zoom: viewState.zoom,
@@ -534,7 +491,7 @@ export const MapComponent = React.memo(function MapComponent(
                 style={{
                   transform: [
                     {
-                      rotate: `${marker.bearing - (props.currentHeadingRef?.current || 0)}deg`,
+                      rotate: `${marker.bearing - (props.userHeading || 0)}deg`,
                     },
                   ],
                   opacity: turnOpacity,
@@ -572,22 +529,19 @@ export const MapComponent = React.memo(function MapComponent(
           </MapLibre.GeoJSONSource>
         )}
 
-        {props.routeStarted &&
-          props.currentGpsLocRef &&
-          props.currentHeadingRef && (
-            <CarMarker
-              currentGpsLocRef={
-                props.currentGpsLocRef as React.MutableRefObject<{
-                  lat: number;
-                  lon: number;
-                } | null>
-              }
-              currentHeadingRef={
-                props.currentHeadingRef as React.MutableRefObject<number>
-              }
-              iconSource={require("../assets/images/navigation_material.svg")}
-            />
-          )}
+        {props.routeStarted && props.currentGpsLocRef && (
+          <CarMarker
+            animLat={props.animLat}
+            animLon={props.animLon}
+            currentGpsLocRef={
+              props.currentGpsLocRef as React.MutableRefObject<{
+                lat: number;
+                lon: number;
+              } | null>
+            }
+            iconSource={require("../assets/images/navigation_material.svg")}
+          />
+        )}
 
         {props.boundingBoxGeoJSON && (
           <MapLibre.GeoJSONSource

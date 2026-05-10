@@ -1,9 +1,3 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["MapMatcherModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.mapmatcher.MapMatcherModule"]
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:371135bf55834255e09fab50d8fb40ac00aa18086774a571393f7830819655fe
+size 181
