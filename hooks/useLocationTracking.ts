@@ -318,7 +318,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
               duration: 1000,
               easing: "linear",
               padding: {
-                top: screenHeight * (2 / 3),
+                top: screenHeight * (0.62),
                 bottom: 0,
                 left: 0,
                 right: 0,
@@ -367,7 +367,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
               duration: duration * 1000,
               easing: "linear",
               padding: {
-                top: screenHeight * (2 / 3),
+                top: screenHeight * (0.62),
                 bottom: 0,
                 left: 0,
                 right: 0,
