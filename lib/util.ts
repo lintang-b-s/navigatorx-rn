@@ -1,6 +1,14 @@
-import { EPS } from "./constants";
+import {
+  EARTH_RADIUS_KM,
+  EPS,
+  EQUATORIAL_RADIUS_METERS,
+  TRUNCATE_STRING_DEFAULT_LENGTH,
+} from "./constants";
 
-export function truncateString(str: string, maxLength: number = 30) {
+export function truncateString(
+  str: string,
+  maxLength: number = TRUNCATE_STRING_DEFAULT_LENGTH,
+) {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - 3) + "...";
 }
@@ -23,7 +31,6 @@ export function getArrivalTime(
   return `${hours}:${minuteStr} ${ampm}`;
 }
 
-const EARTH_RADIUS_KM = 6371.0;
 
 function toRadians(deg: number): number {
   return deg * (Math.PI / 180);
@@ -55,7 +62,7 @@ export function haversineDistance(
 const PI = Math.PI;
 const RAD2DEG = 180 / PI;
 const DEG2RAD = PI / 180;
-const R = 6378137.0;
+const R = EQUATORIAL_RADIUS_METERS;
 
 function y2lat(y: number): number {
   return (2 * Math.atan(Math.exp(y / R)) - PI / 2) * RAD2DEG;

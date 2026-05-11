@@ -5,6 +5,11 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    ignores: [
+      'dist/*',
+      '.kilo/*',
+      'assets/images/wasm_exec.js',
+      '.expo/*',
+    ],
   },
 ]);

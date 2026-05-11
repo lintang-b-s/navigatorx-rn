@@ -5,8 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
-  useState,
+  useState
 } from "react";
 import {
   Dimensions,
@@ -35,6 +34,7 @@ export interface MapComponentProps {
   animLat?: any;
   animLon?: any;
   animHeading?: any;
+  animDuration?: any;
   cameraRef?: React.RefObject<any>;
   triggerGeolocate?: number;
   boundingBoxGeoJSON?: any;
@@ -149,9 +149,30 @@ function getTurnIconDirection(turnType: string): any {
   }
 }
 
-export const MapComponent = React.memo(function MapComponent(
-  props: MapComponentProps,
-) {
+export const MapComponent = React.memo(function MapComponent({
+  lineData,
+  alternativeRoutes,
+  activeRoute = 0,
+  isDirectionActive,
+  routeDataCRP,
+  nextTurnIndex,
+  nextTurnTrigger,
+  routeStarted,
+  currentGpsLocRef,
+  userHeading,
+  animLat,
+  animLon,
+  animHeading,
+  animDuration,
+  cameraRef,
+  triggerGeolocate,
+  boundingBoxGeoJSON,
+  onSelectSource,
+  onSelectDestination,
+  onUserLocationUpdateHandler,
+  safeAreaInsets,
+  gpsWindowPoints,
+}: MapComponentProps) {
   const [zoomLevel, setZoomLevel] = useState(13);
   const [contextMenuCoord, setContextMenuCoord] = useState<{
     lon: number;
@@ -164,9 +185,6 @@ export const MapComponent = React.memo(function MapComponent(
     bearing: 0,
     pitch: 0,
   });
-
-  const mapRef = useRef<MapLibre.MapRef>(null);
-  const userPosition = MapLibre.useCurrentPosition();
 
   // Geolocate handler - uses expo-location for accurate GPS
   const handleGeolocate = useCallback(async () => {
@@ -185,8 +203,8 @@ export const MapComponent = React.memo(function MapComponent(
 
       if (location.coords) {
         const { latitude, longitude } = location.coords;
-        props.onUserLocationUpdateHandler?.(latitude, longitude);
-        props.cameraRef?.current?.flyTo({
+        onUserLocationUpdateHandler?.(latitude, longitude);
+        cameraRef?.current?.flyTo({
           center: [longitude, latitude],
           zoom: 17,
           duration: 500,
@@ -195,12 +213,12 @@ export const MapComponent = React.memo(function MapComponent(
     } catch (error) {
       console.error("Geolocate error:", error);
     }
-  }, [props.onUserLocationUpdateHandler]);
+  }, [onUserLocationUpdateHandler, cameraRef]);
 
   // Zoom in/out handlers
   const handleZoomIn = () => {
     const newZoom = Math.min(viewState.zoom + 1, 20);
-    props.cameraRef?.current?.flyTo({
+    cameraRef?.current?.flyTo({
       center: [viewState.longitude, viewState.latitude],
       zoom: newZoom,
       duration: 300,
@@ -209,7 +227,7 @@ export const MapComponent = React.memo(function MapComponent(
 
   const handleZoomOut = () => {
     const newZoom = Math.max(viewState.zoom - 1, 3);
-    props.cameraRef?.current?.flyTo({
+    cameraRef?.current?.flyTo({
       center: [viewState.longitude, viewState.latitude],
       zoom: newZoom,
       duration: 300,
@@ -218,68 +236,69 @@ export const MapComponent = React.memo(function MapComponent(
 
   // Jump to route start if active route or line data changes
   useEffect(() => {
-    if (props.routeStarted || !props.lineData?.geometry?.coordinates) return;
-    const coords = props.lineData.geometry.coordinates;
+    if (routeStarted || !lineData?.geometry?.coordinates) return;
+    const coords = lineData.geometry.coordinates;
     if (coords.length > 0) {
       const fittedViewState = getRouteFittedViewState(coords);
-      props.cameraRef?.current?.flyTo({
+      cameraRef?.current?.flyTo({
         center: fittedViewState.centerCoordinate,
         zoom: fittedViewState.zoomLevel,
         duration: 1000,
       });
     }
-  }, [props.lineData, props.activeRoute, props.routeStarted]);
+  }, [lineData, activeRoute, routeStarted, cameraRef]);
 
   // Jump to next turn when nextTurnIndex or trigger changes
   useEffect(() => {
     const turn =
-      props.routeDataCRP?.[props.activeRoute || 0]?.driving_directions?.[
-        props.nextTurnIndex || 0
+      routeDataCRP?.[activeRoute || 0]?.driving_directions?.[
+        nextTurnIndex || 0
       ];
     if (
-      props.nextTurnIndex !== undefined &&
-      props.nextTurnIndex !== -1 &&
+      nextTurnIndex !== undefined &&
+      nextTurnIndex !== -1 &&
       turn &&
-      !props.routeStarted
+      !routeStarted
     ) {
-      props.cameraRef?.current?.flyTo({
+      cameraRef?.current?.flyTo({
         center: [turn.turn_point.lon, turn.turn_point.lat],
         zoom: 18,
         duration: 500,
       });
     }
   }, [
-    props.nextTurnIndex,
-    props.nextTurnTrigger,
-    props.routeDataCRP,
-    props.activeRoute,
-    props.routeStarted,
+    nextTurnIndex,
+    nextTurnTrigger,
+    routeDataCRP,
+    activeRoute,
+    routeStarted,
+    cameraRef,
   ]);
 
   const activeRouteCoordinates = useMemo(() => {
-    if (props.activeRoute === 0) {
-      return props.lineData?.geometry?.coordinates;
+    if (activeRoute === 0) {
+      return lineData?.geometry?.coordinates;
     }
-    return props.alternativeRoutes?.[props.activeRoute || 0]?.geometry
+    return alternativeRoutes?.[activeRoute || 0]?.geometry
       ?.coordinates;
-  }, [props.activeRoute, props.lineData, props.alternativeRoutes]);
+  }, [activeRoute, lineData, alternativeRoutes]);
 
   const spRouteGeoJSON = useMemo(() => {
-    if (!props.lineData) return null;
+    if (!lineData) return null;
     return {
       type: "Feature" as const,
       geometry: {
         type: "LineString" as const,
-        coordinates: props.lineData.geometry.coordinates,
+        coordinates: lineData.geometry.coordinates,
       },
       properties: {},
     };
-  }, [props.lineData]);
+  }, [lineData]);
 
   const activeRouteGeoJSON = useMemo(() => {
     if (
-      props.activeRoute === 0 ||
-      !props.alternativeRoutes?.[props.activeRoute || 0]
+      activeRoute === 0 ||
+      !alternativeRoutes?.[activeRoute || 0]
     )
       return null;
     return {
@@ -287,18 +306,18 @@ export const MapComponent = React.memo(function MapComponent(
       geometry: {
         type: "LineString" as const,
         coordinates:
-          props.alternativeRoutes[props.activeRoute || 0].geometry.coordinates,
+          alternativeRoutes[activeRoute || 0].geometry.coordinates,
       },
       properties: {},
     };
-  }, [props.activeRoute, props.alternativeRoutes]);
+  }, [activeRoute, alternativeRoutes]);
 
   // Alternative routes (filter out active and main route)
   const alternativeRouteGeoJSONs = useMemo(() => {
-    if (!props.alternativeRoutes || props.alternativeRoutes.length === 0)
+    if (!alternativeRoutes || alternativeRoutes.length === 0)
       return [];
-    return props.alternativeRoutes
-      .filter((_, i) => i !== 0 && i !== props.activeRoute)
+    return alternativeRoutes
+      .filter((_, i) => i !== 0 && i !== activeRoute)
       .map((route, index) => ({
         id: `alt-route-${index}`,
         data: {
@@ -310,17 +329,17 @@ export const MapComponent = React.memo(function MapComponent(
           properties: {},
         },
       }));
-  }, [props.alternativeRoutes, props.activeRoute]);
+  }, [alternativeRoutes, activeRoute]);
 
   // Turn Markers Logic (Match Web)
   const turnMarkers = useMemo(() => {
     if (
-      !props.isDirectionActive ||
-      !props.routeDataCRP?.[props.activeRoute || 0]?.driving_directions
+      !isDirectionActive ||
+      !routeDataCRP?.[activeRoute || 0]?.driving_directions
     )
       return [];
 
-    return props.routeDataCRP[props.activeRoute || 0].driving_directions.map(
+    return routeDataCRP[activeRoute || 0].driving_directions.map(
       (turn: any, index: number) => {
         const icon = getTurnIconDirection(turn.turn_type);
         const turnPointOnPolyline = findClosestPointOnRoute(
@@ -338,18 +357,18 @@ export const MapComponent = React.memo(function MapComponent(
       },
     );
   }, [
-    props.isDirectionActive,
-    props.routeDataCRP,
-    props.activeRoute,
+    isDirectionActive,
+    routeDataCRP,
+    activeRoute,
     activeRouteCoordinates,
   ]);
 
   const gpsWindowGeoJSON = useMemo(() => {
-    if (!props.gpsWindowPoints || props.gpsWindowPoints.length === 0)
+    if (!gpsWindowPoints || gpsWindowPoints.length === 0)
       return null;
     return {
       type: "FeatureCollection" as const,
-      features: props.gpsWindowPoints.map((p, i) => ({
+      features: gpsWindowPoints.map((p, i) => ({
         type: "Feature" as const,
         id: i,
         geometry: {
@@ -359,7 +378,7 @@ export const MapComponent = React.memo(function MapComponent(
         properties: {},
       })),
     };
-  }, [props.gpsWindowPoints]);
+  }, [gpsWindowPoints]);
 
   // Zoom-based turn scale (match web) - ensure high opacity for visibility
   const zoomBasedTurnScale = Math.max(
@@ -399,7 +418,7 @@ export const MapComponent = React.memo(function MapComponent(
         }}
       >
         <MapLibre.Camera
-          ref={props.cameraRef as any}
+          ref={cameraRef as any}
           initialViewState={{
             center: [viewState.longitude, viewState.latitude],
             zoom: viewState.zoom,
@@ -426,7 +445,7 @@ export const MapComponent = React.memo(function MapComponent(
         )}
 
         {/* Show fastest route (route 0) always visible when alternative route is selected */}
-        {props.activeRoute !== 0 && spRouteGeoJSON && (
+        {activeRoute !== 0 && spRouteGeoJSON && (
           <MapLibre.GeoJSONSource id="sp-route-source" data={spRouteGeoJSON}>
             <MapLibre.Layer
               id="sp-route-layer"
@@ -460,7 +479,7 @@ export const MapComponent = React.memo(function MapComponent(
         ))}
 
         {/* Active route from alternative routes */}
-        {props.activeRoute !== 0 && activeRouteGeoJSON && (
+        {activeRoute !== 0 && activeRouteGeoJSON && (
           <MapLibre.GeoJSONSource
             id="active-route-source"
             data={activeRouteGeoJSON}
@@ -491,7 +510,7 @@ export const MapComponent = React.memo(function MapComponent(
                 style={{
                   transform: [
                     {
-                      rotate: `${marker.bearing - (props.userHeading || 0)}deg`,
+                      rotate: `${marker.bearing - (userHeading || 0)}deg`,
                     },
                   ],
                   opacity: turnOpacity,
@@ -515,7 +534,7 @@ export const MapComponent = React.memo(function MapComponent(
         })}
 
         {/* Main active route (index 0) */}
-        {props.activeRoute === 0 && spRouteGeoJSON && (
+        {activeRoute === 0 && spRouteGeoJSON && (
           <MapLibre.GeoJSONSource id="polyline-source" data={spRouteGeoJSON}>
             <MapLibre.Layer
               id="polyline-layer"
@@ -529,24 +548,24 @@ export const MapComponent = React.memo(function MapComponent(
           </MapLibre.GeoJSONSource>
         )}
 
-        {props.routeStarted && props.currentGpsLocRef && (
+        {routeStarted && currentGpsLocRef && (
           <CarMarker
-            animLat={props.animLat}
-            animLon={props.animLon}
+            animLat={animLat}
+            animLon={animLon}
+            animDuration={animDuration}
             currentGpsLocRef={
-              props.currentGpsLocRef as React.MutableRefObject<{
+              currentGpsLocRef as React.MutableRefObject<{
                 lat: number;
                 lon: number;
               } | null>
             }
-            iconSource={require("../assets/images/navigation_material.svg")}
           />
         )}
 
-        {props.boundingBoxGeoJSON && (
+        {boundingBoxGeoJSON && (
           <MapLibre.GeoJSONSource
             id="bounding-box-source"
-            data={props.boundingBoxGeoJSON}
+            data={boundingBoxGeoJSON}
           >
             <MapLibre.Layer
               id="bounding-box-layer"
@@ -559,17 +578,19 @@ export const MapComponent = React.memo(function MapComponent(
           </MapLibre.GeoJSONSource>
         )}
 
-        <MapLibre.UserLocation animated={true} accuracy={true} />
+        {!routeStarted && (
+          <MapLibre.UserLocation animated={true} accuracy={true} />
+        )}
       </MapLibre.Map>
 
       {/* Map Control Buttons (Geolocate, Zoom In, Zoom Out) - Bottom Right */}
       <View
         className="absolute z-10 flex flex-col gap-2"
         style={{
-          right: 16 + (props.safeAreaInsets?.right ?? 0),
-          bottom: props.routeStarted
-            ? 120 + (props.safeAreaInsets?.bottom ?? 0)
-            : 16 + (props.safeAreaInsets?.bottom ?? 0),
+          right: 16 + (safeAreaInsets?.right ?? 0),
+          bottom: routeStarted
+            ? 120 + (safeAreaInsets?.bottom ?? 0)
+            : 16 + (safeAreaInsets?.bottom ?? 0),
         }}
       >
         {/* Geolocate Button */}
@@ -622,7 +643,7 @@ export const MapComponent = React.memo(function MapComponent(
           <Pressable
             className="py-2 border-b border-gray-100"
             onPress={() => {
-              props.onSelectSource?.({
+              onSelectSource?.({
                 osm_object: {
                   id: 0,
                   name: `${contextMenuCoord.lat}, ${contextMenuCoord.lon}`,
@@ -641,7 +662,7 @@ export const MapComponent = React.memo(function MapComponent(
           <Pressable
             className="py-2"
             onPress={() => {
-              props.onSelectDestination?.({
+              onSelectDestination?.({
                 osm_object: {
                   id: 0,
                   name: `${contextMenuCoord.lat}, ${contextMenuCoord.lon}`,

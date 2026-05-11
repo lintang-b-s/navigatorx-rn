@@ -86,6 +86,7 @@ function NavigationScreenInner() {
     animLat: nav.animLat,
     animLon: nav.animLon,
     animHeading: nav.animHeading,
+    animDuration: nav.animDuration,
     cameraRef: nav.cameraRef,
   });
 
@@ -95,7 +96,7 @@ function NavigationScreenInner() {
     nav.navigationState.matchedGpsLoc?.lat ?? nav.rawGpsLoc?.lat ?? -6.2;
   const searchLon =
     nav.navigationState.matchedGpsLoc?.lon ?? nav.rawGpsLoc?.lon ?? 106.8;
-  const { searchResults, isSearching, search, clearResults, reverseGeocode } =
+  const { searchResults, search, clearResults, reverseGeocode } =
     useSearch(searchLat, searchLon);
 
   // Track which input is active for search results
@@ -198,7 +199,6 @@ function NavigationScreenInner() {
   );
 
   // --- Derived State ---
-  const isPlanning = !nav.routeStarted && !nav.routeData;
   const isRouting =
     !nav.routeStarted && nav.routeData && nav.routeData.length > 0;
   const isNavigating = nav.routeStarted;
@@ -253,9 +253,7 @@ function NavigationScreenInner() {
   const remainingMinutes = useMemo(() => {
     if (!nav.routeData || nav.activeRoute >= nav.routeData.length) return 0;
     const route = nav.routeData[nav.activeRoute];
-    return Math.ceil(
-      Math.max(0, route.travel_time - (nav.timeSpent || 0)) / 60,
-    );
+    return Math.ceil(Math.max(0, route.travel_time - (nav.timeSpent || 0)));
   }, [nav.routeData, nav.activeRoute, nav.timeSpent]);
 
   const remainingDistanceKm = useMemo(() => {
@@ -288,6 +286,7 @@ function NavigationScreenInner() {
         animLat={nav.animLat}
         animLon={nav.animLon}
         animHeading={nav.animHeading}
+        animDuration={nav.animDuration}
         cameraRef={nav.cameraRef}
         rawGpsLoc={nav.rawGpsLoc}
         nextTurnIndex={nav.nextTurnIndex}

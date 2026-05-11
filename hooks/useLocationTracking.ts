@@ -1,11 +1,7 @@
 import * as Location from "expo-location";
 import { useEffect, useRef } from "react";
 import { Dimensions } from "react-native";
-import {
-  Easing,
-  useAnimatedReaction,
-  withTiming,
-} from "react-native-reanimated";
+
 import {
   DEFAULT_CONSTANT_SPEED,
   INVALID_LAT,
@@ -59,6 +55,7 @@ interface UseLocationTrackingParams {
   animLat: any;
   animLon: any;
   animHeading: any;
+  animDuration: any;
   cameraRef: React.RefObject<any>;
 }
 
@@ -101,12 +98,47 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     animLat,
     animLon,
     animHeading,
+    animDuration,
     cameraRef,
   } = params;
 
   // Track last GPS update time for dead reckoning timeout
   const lastGpsUpdateTimeRef = useRef<number>(0);
   const prevTimeRef = useRef<Date>(new Date());
+
+  // Use refs for values that should be accessed but not trigger effect re-runs
+  const destinationLocRef = useRef(destinationLoc);
+  destinationLocRef.current = destinationLoc;
+
+  const setNavigationStateRef = useRef(setNavigationState);
+  setNavigationStateRef.current = setNavigationState;
+
+  const setSnappedEdgeIDRef = useRef(setSnappedEdgeID);
+  setSnappedEdgeIDRef.current = setSnappedEdgeID;
+
+  const setRawGpsLocRef = useRef(setRawGpsLoc);
+  setRawGpsLocRef.current = setRawGpsLoc;
+
+  const setSpeedRef = useRef(setSpeed);
+  setSpeedRef.current = setSpeed;
+
+  const setRouteStartedRef = useRef(setRouteStarted);
+  setRouteStartedRef.current = setRouteStarted;
+
+  const setRouteDataRef = useRef(setRouteData);
+  setRouteDataRef.current = setRouteData;
+
+  const setPolylineDataRef = useRef(setPolylineData);
+  setPolylineDataRef.current = setPolylineData;
+
+  const setAlternativeRoutesLineDataRef = useRef(setAlternativeRoutesLineData);
+  setAlternativeRoutesLineDataRef.current = setAlternativeRoutesLineData;
+
+  const setActiveRouteRef = useRef(setActiveRoute);
+  setActiveRouteRef.current = setActiveRoute;
+
+  const setNextTurnIndexRef = useRef(setNextTurnIndex);
+  setNextTurnIndexRef.current = setNextTurnIndex;
 
   useEffect(() => {
     if (!routeStarted) {
@@ -121,12 +153,12 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       lastGpsUpdateTimeRef.current = 0;
       isInitialReroutePerformed.current = false;
       hasArrived.current = false;
-      setNavigationState((prev) => ({
+      setNavigationStateRef.current((prev) => ({
         ...prev,
         matchedGpsLoc: undefined,
         matchedHeading: 0,
       }));
-      setSnappedEdgeID(0);
+      setSnappedEdgeIDRef.current(0);
       currentGpsLocRef.current = null;
       currentHeadingRef.current = 0;
       return;
@@ -138,26 +170,30 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
      * Checks if user has arrived at destination, mirrors FE logic.
      */
     const checkArrival = () => {
-      if (destinationLoc && !hasArrived.current && currentGpsLocRef.current) {
+      if (
+        destinationLocRef.current &&
+        !hasArrived.current &&
+        currentGpsLocRef.current
+      ) {
         const distToDest =
           haversineDistance(
             currentGpsLocRef.current.lat,
             currentGpsLocRef.current.lon,
-            destinationLoc.osm_object.lat,
-            destinationLoc.osm_object.lon,
+            destinationLocRef.current.osm_object.lat,
+            destinationLocRef.current.osm_object.lon,
           ) * 1000;
 
         if (distToDest < 30) {
           // USER_HAS_ARRIVED_DESTINATION_DISTANCE
           hasArrived.current = true;
-          setRouteStarted(false);
-          setRouteData(undefined);
-          setPolylineData(undefined);
-          setAlternativeRoutesLineData([]);
-          setActiveRoute(0);
+          setRouteStartedRef.current(false);
+          setRouteDataRef.current(undefined);
+          setPolylineDataRef.current(undefined);
+          setAlternativeRoutesLineDataRef.current([]);
+          setActiveRouteRef.current(0);
           activeRouteRef.current = 0;
-          setNextTurnIndex(-1);
-          setNavigationState({
+          setNextTurnIndexRef.current(-1);
+          setNavigationStateRef.current({
             matchedGpsLoc: undefined,
             matchedHeading: 0,
             distanceFromNextTurnPoint: 0,
@@ -177,8 +213,8 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
 
         // Check if map matcher lost track of the vehicle
         if (
-          resp.matched_gps_point.matched_coord.lat == INVALID_LAT &&
-          resp.matched_gps_point.matched_coord.lon == INVALID_LON
+          resp.matched_gps_point.matched_coord.lat === INVALID_LAT &&
+          resp.matched_gps_point.matched_coord.lon === INVALID_LON
         ) {
           // Reset — matcher lost track
           mapMatchStep.current = 1;
@@ -186,7 +222,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           speedMeanK.current = DEFAULT_CONSTANT_SPEED;
           speedStdK.current = DEFAULT_CONSTANT_SPEED;
           lastBearing.current = 0.0;
-          setNavigationState((prev) => ({
+          setNavigationStateRef.current((prev) => ({
             ...prev,
             matchedHeading: 0,
             matchedGpsLoc: undefined,
@@ -251,7 +287,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
               );
 
               if (otherRouteIndex !== -1) {
-                setActiveRoute(otherRouteIndex);
+                setActiveRouteRef.current(otherRouteIndex);
                 activeRouteRef.current = otherRouteIndex;
               }
             }
@@ -265,7 +301,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           animLat.value = matched.lat;
           animLon.value = matched.lon;
           animHeading.value = targetHeading;
-          setNavigationState((prev) => ({
+          setNavigationStateRef.current((prev) => ({
             ...prev,
             matchedGpsLoc: { lat: matched.lat, lon: matched.lon },
             matchedHeading: targetHeading,
@@ -307,22 +343,13 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           if (diff < -180) diff += 360;
           const targetHContinuous = currentHeadingRef.current + diff;
 
-          // Set animation targets
-          animLat.value = withTiming(matched.lat, {
-            duration: duration * 1000,
-            easing: Easing.linear,
-          });
+          // Set animation targets (Direct jump, interpolation happens in CarMarker)
+          animDuration.value = duration * 1000;
+          animLat.value = matched.lat;
+          animLon.value = matched.lon;
+          animHeading.value = targetHContinuous;
 
-          animLon.value = withTiming(matched.lon, {
-            duration: duration * 1000,
-            easing: Easing.linear,
-          });
-          animHeading.value = withTiming(targetHContinuous, {
-            duration: duration * 1000,
-            easing: Easing.linear,
-          });
-
-          // Update ref values for interpolation
+          // Update ref values for interpolation targets
           currentGpsLocRef.current = { lat: matched.lat, lon: matched.lon };
           const targetHContinuousNormalized =
             ((targetHContinuous % 360) + 360) % 360;
@@ -348,7 +375,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           }
         }
 
-        setSnappedEdgeID(resp.matched_gps_point.edge_id);
+        setSnappedEdgeIDRef.current(resp.matched_gps_point.roadnetwork_edge_id);
         checkArrival();
       } catch (err) {
         console.error("[LocationTracking] Failed to process match:", err);
@@ -358,6 +385,13 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     const processGpsUpdate = async (location: {
       coords: { latitude: number; longitude: number; speed?: number | null };
     }) => {
+      console.log(
+        "[GPS] Raw update received:",
+        location.coords.latitude,
+        location.coords.longitude,
+      );
+      if (!routeStarted) return;
+
       const currentTime = new Date();
       deadReckoning.current = false;
       let deltaTime = 0;
@@ -412,7 +446,6 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       lastGpsUpdateTimeRef.current = Date.now();
       prevTimeRef.current = currentTime;
 
-      // Load tile asynchronously (non-blocking)
       void nativeMapMatcher.loadTile(
         location.coords.latitude,
         location.coords.longitude,
@@ -427,23 +460,27 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         speedStdK.current,
         lastBearing.current,
       );
+      console.log("mapmatch response: ", resp);
 
       if (resp) handleMapMatchResponse(resp);
 
       mapMatchStep.current += 1;
-      setRawGpsLoc({ lat: currentGps.lat, lon: currentGps.lon });
-      setSpeed(currentGps.speed);
+      setRawGpsLocRef.current({ lat: currentGps.lat, lon: currentGps.lon });
+      setSpeedRef.current(currentGps.speed);
       prevGps.current = currentGps;
     };
 
     const startTracking = async () => {
-      // Real GPS mode
+      console.log("[LocationTracking] Requesting permissions...");
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log("[LocationTracking] Permission status:", status);
+
       if (status !== "granted") {
-        console.error("Location permission denied");
+        console.error("[LocationTracking] Permission denied");
         return;
       }
 
+      console.log("[LocationTracking] Starting watchPositionAsync...");
       watchSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
@@ -451,28 +488,45 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           distanceInterval: 1,
         },
         async (location) => {
+          // console.log("[LocationTracking] Callback fired!");
           processGpsUpdate(location);
         },
       );
+      console.log("[LocationTracking] Watcher active.");
     };
 
+    console.log(
+      "[LocationTracking] useEffect triggered, routeStarted:",
+      routeStarted,
+    );
     startTracking();
 
     return () => {
       if (watchSubscription) watchSubscription.remove();
     };
-  }, [routeStarted]);
-
-  // Bridge Reanimated SharedValues to refs so downstream consumers (useNavigationSync, CarMarker) can read them
-  useAnimatedReaction(
-    () => ({
-      lat: animLat.value,
-      lon: animLon.value,
-      heading: animHeading.value,
-    }),
-    (result) => {
-      currentGpsLocRef.current = { lat: result.lat, lon: result.lon };
-      currentHeadingRef.current = result.heading;
-    },
-  );
+  }, [
+    routeStarted,
+    activeRouteRef,
+    animDuration,
+    animHeading,
+    animLat,
+    animLon,
+    candidates,
+    cameraRef,
+    currentGpsLocRef,
+    currentHeadingRef,
+    deadReckoning,
+    hasArrived,
+    isInitialReroutePerformed,
+    lastBearing,
+    lastMatchedPointRef,
+    mapMatchStep,
+    prevGps,
+    routeDataRef,
+    snappedEdgeIDRef,
+    speedMeanK,
+    speedStdK,
+    startTimeRef,
+    totalDistanceTraveledRef,
+  ]);
 }

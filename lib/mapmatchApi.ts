@@ -1,14 +1,12 @@
 // https://navigatorx.lintangbs.site/mapmatch/api/map-match/map-matching
 
-import axios from "axios";
-
 export interface Coord {
   lat: number;
   lon: number;
 }
 
 export interface Candidate {
-  edge_id: number;
+  roadnetwork_edge_id: number;
   weight: number;
   length: number;
 }
@@ -24,7 +22,7 @@ export interface Gps {
 
 export interface MatchedGpsPoint {
   gps_point: Gps;
-  edge_id: number;
+  roadnetwork_edge_id: number;
   matched_coord: Coord;
   predicted_gps_coord: Coord;
   edge_initial_bearing: number;
@@ -53,18 +51,3 @@ export interface MapMatchResponse {
     edge_initial_bearing: number;
   };
 }
-
-export const fetchMapMatch = async (
-  request: MapMatchRequest
-): Promise<MapMatchResponse> => {
-  try {
-    const { data } = await axios.post(
-      `https://navigatorx.lintangbs.site/api/onlineMapMatch`, // lagi off vps
-      request
-    );
-
-    return data;
-  } catch (error) {
-    throw new Error("Failed to fetch search results");
-  }
-};

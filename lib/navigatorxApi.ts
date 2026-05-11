@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_CONFIG } from "./config";
+import { ALTERNATIVE_ROUTES_COUNT, INVALID_EDGE_ID } from "./constants";
 
 /**
  * A single step in the navigation instructions (e.g., "Turn Left onto Main St").
@@ -86,7 +87,7 @@ export const fetchRouteCRP = async ({
   try {
     let url = `${API_CONFIG.ROUTER_API_URL}/api/computeRoutes?origin_lat=${srcLat}&origin_lon=${srcLon}&destination_lat=${destLat}&destination_lon=${destLon}${reroute ? "&reroute=true" : ""}`;
 
-    if (startEdgeId !== undefined && startEdgeId !== -1) {
+    if (startEdgeId !== undefined && startEdgeId !== INVALID_EDGE_ID) {
       url += `&start_edge_id=${startEdgeId}`;
     }
 
@@ -124,7 +125,7 @@ export const fetchBoundingBox = async (): Promise<BoundingBoxWrapper> => {
     const url = `${API_CONFIG.ROUTER_API_URL}/api/boundingBox`;
     const { data } = await axios.get(url);
     return data;
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch bounding box");
   }
 };
@@ -138,16 +139,16 @@ export const fetchAlternativeRoutes = async ({
   startEdgeId,
 }: RouteRequest): Promise<AlternativeRoutesResponse> => {
   try {
-    let url = `${API_CONFIG.ROUTER_API_URL}/api/computeAlternativeRoutes?origin_lat=${srcLat}&origin_lon=${srcLon}&destination_lat=${destLat}&destination_lon=${destLon}&k=2${reroute ? "&reroute=true" : ""}`;
+    let url = `${API_CONFIG.ROUTER_API_URL}/api/computeAlternativeRoutes?origin_lat=${srcLat}&origin_lon=${srcLon}&destination_lat=${destLat}&destination_lon=${destLon}&k=${ALTERNATIVE_ROUTES_COUNT}${reroute ? "&reroute=true" : ""}`;
 
-    if (startEdgeId !== undefined && startEdgeId !== -1) {
+    if (startEdgeId !== undefined && startEdgeId !== INVALID_EDGE_ID) {
       url += `&start_edge_id=${startEdgeId}`;
     }
 
     const { data } = await axios.get(url, {});
 
     return data;
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch search results");
   }
 };

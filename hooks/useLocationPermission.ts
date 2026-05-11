@@ -48,7 +48,7 @@ export function useLocationPermission() {
       if (Platform.OS === "android") {
         try {
           await Location.enableNetworkProviderAsync();
-        } catch (e) {
+        } catch {
           // User may have declined - continue anyway
           console.log(
             "Network provider not enabled, using available providers",

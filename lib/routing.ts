@@ -1,4 +1,4 @@
-import { Coord, Gps } from "./mapmatchApi";
+import { Coord } from "./mapmatchApi";
 import { Direction, RouteCRPResponse } from "./navigatorxApi";
 import { haversineDistance } from "./util";
 

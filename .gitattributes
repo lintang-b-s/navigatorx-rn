@@ -1,6 +1,11 @@
-*.gpx filter=lfs diff=lfs merge=lfs -text
-*.json filter=lfs diff=lfs merge=lfs -text
-*.csv filter=lfs diff=lfs merge=lfs -text
+# Data files
+data/**/*.gpx filter=lfs diff=lfs merge=lfs -text
+data/**/*.json filter=lfs diff=lfs merge=lfs -text
+data/**/*.csv filter=lfs diff=lfs merge=lfs -text
+
+# All files in the modules directory as requested
+modules/**/* filter=lfs diff=lfs merge=lfs -text
+# Other specific binary patterns (redundant but safe)
 *.aar filter=lfs diff=lfs merge=lfs -text
 *.jar filter=lfs diff=lfs merge=lfs -text
 *.wasm filter=lfs diff=lfs merge=lfs -text
@@ -8,10 +13,9 @@
 *.lib filter=lfs diff=lfs merge=lfs -text
 *.dll filter=lfs diff=lfs merge=lfs -text
 *.dylib filter=lfs diff=lfs merge=lfs -text
-data/**/*.json filter=lfs diff=lfs merge=lfs -text
-data/**/*.gpx filter=lfs diff=lfs merge=lfs -text
-data/**/*.csv filter=lfs diff=lfs merge=lfs -text
 app.json !text !filter !merge !diff
 eas.json !text !filter !merge !diff
 tsconfig.json !text !filter !merge !diff
 package-lock.json !text !filter !merge !diff
+*.csv filter=lfs diff=lfs merge=lfs -text
+*.gpx filter=lfs diff=lfs merge=lfs -text

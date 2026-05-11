@@ -4,9 +4,9 @@ import { Platform, ToastAndroid } from "react-native";
 import { Candidate, Coord } from "../lib/mapmatchApi";
 import { fetchAlternativeRoutes, RouteCRPResponse } from "../lib/navigatorxApi";
 import {
-    getCurrentUserDirectionIndex,
-    isNearEndOfSuggestAlternativesStep,
-    isUserOffTheRoute,
+  getCurrentUserDirectionIndex,
+  isNearEndOfSuggestAlternativesStep,
+  isUserOffTheRoute,
 } from "../lib/routing";
 import { fetchAndProcessRoutes } from "../lib/routingService";
 import { Place } from "../lib/searchApi";
@@ -51,7 +51,6 @@ export function useRerouting(nav: NavigationHookResult) {
     currentGpsLocRef,
     isInitialReroutePerformed,
     mapMatchStep,
-    candidates,
     lastFetchedAlternativesStep,
     startTimeRef,
     totalDistanceTraveledRef,
@@ -65,11 +64,27 @@ export function useRerouting(nav: NavigationHookResult) {
 
   const rerouteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Use refs for values that should be accessed but not trigger effect re-runs
+  const destinationLocRef = useRef(destinationLoc);
+  destinationLocRef.current = destinationLoc;
+
+  const setRouteDataRefInternal = useRef(setRouteData);
+  setRouteDataRefInternal.current = setRouteData;
+
+  const setActiveRouteRefInternal = useRef(setActiveRoute);
+  setActiveRouteRefInternal.current = setActiveRoute;
+
+  const setPolylineDataRefInternal = useRef(setPolylineData);
+  setPolylineDataRefInternal.current = setPolylineData;
+
+  const setAlternativeRoutesLineDataRefInternal = useRef(setAlternativeRoutesLineData);
+  setAlternativeRoutesLineDataRefInternal.current = setAlternativeRoutesLineData;
+
   useEffect(() => {
     if (!routeStarted) return;
 
-    const { matchedGpsLoc, currentDirectionIndex } = navigationState;
-    if (!matchedGpsLoc || !destinationLoc) return;
+    const { matchedGpsLoc } = navigationState;
+    if (!matchedGpsLoc || !destinationLocRef.current) return;
 
     const usedRoute = routeDataRef.current?.[activeRouteRef.current];
     if (!usedRoute) return;
@@ -96,11 +111,12 @@ export function useRerouting(nav: NavigationHookResult) {
 
       (async () => {
         try {
+          if (!destinationLocRef.current) return;
           const reqBody = {
             srcLat: currentGpsLocRef.current?.lat || matchedGpsLoc.lat,
             srcLon: currentGpsLocRef.current?.lon || matchedGpsLoc.lon,
-            destLat: destinationLoc.osm_object.lat,
-            destLon: destinationLoc.osm_object.lon,
+            destLat: destinationLocRef.current.osm_object.lat,
+            destLon: destinationLocRef.current.osm_object.lon,
             reroute: true,
             startEdgeId: snappedEdgeIDRef.current,
           };
@@ -122,7 +138,7 @@ export function useRerouting(nav: NavigationHookResult) {
             });
 
             const combinedRoutes = [usedRoute, ...newAlternatives];
-            setRouteData(combinedRoutes);
+            setRouteDataRefInternal.current(combinedRoutes);
             routeDataRef.current = combinedRoutes;
 
             const alternativesPolyline = newAlternatives.map((route) => {
@@ -146,7 +162,10 @@ export function useRerouting(nav: NavigationHookResult) {
                 ],
               },
             };
-            setAlternativeRoutesLineData([dummyRoute, ...alternativesPolyline]);
+            setAlternativeRoutesLineDataRefInternal.current([
+              dummyRoute,
+              ...alternativesPolyline,
+            ]);
           }
         } catch (e) {
           console.error("Failed to fetch alternatives dynamically:", e);
@@ -159,8 +178,8 @@ export function useRerouting(nav: NavigationHookResult) {
     // Skip re-route if at source location
     const firstRouteEdgeID = usedRoute.driving_directions?.[0]?.edge_ids?.[0];
     if (
-      snappedEdgeIDRef.current == firstRouteEdgeID ||
-      mapMatchStep.current == 1
+      snappedEdgeIDRef.current === firstRouteEdgeID &&
+      mapMatchStep.current === 1
     ) {
       return;
     }
@@ -185,7 +204,7 @@ export function useRerouting(nav: NavigationHookResult) {
         );
 
         if (otherRouteIndex !== -1) {
-          setActiveRoute(otherRouteIndex);
+          setActiveRouteRefInternal.current(otherRouteIndex);
           if (Platform.OS === "android") {
             ToastAndroid.show(
               `Switched to alternative route ${otherRouteIndex + 1}`,
@@ -210,26 +229,27 @@ export function useRerouting(nav: NavigationHookResult) {
             isInitialReroutePerformed.current = true;
           }
 
+          if (!destinationLocRef.current) return;
           try {
             const reqBody = {
               srcLat: currentGpsLocRef.current?.lat || matchedGpsLoc.lat,
               srcLon: currentGpsLocRef.current?.lon || matchedGpsLoc.lon,
-              destLat: destinationLoc.osm_object.lat,
-              destLon: destinationLoc.osm_object.lon,
+              destLat: destinationLocRef.current.osm_object.lat,
+              destLon: destinationLocRef.current.osm_object.lon,
               reroute: true,
               startEdgeId: snappedEdgeIDRef.current,
             };
 
             const processedRoutes = await fetchAndProcessRoutes(reqBody, true);
 
-            setRouteData(processedRoutes.combinedRoutes);
+            setRouteDataRefInternal.current(processedRoutes.combinedRoutes);
             routeDataRef.current = processedRoutes.combinedRoutes;
-            setPolylineData(processedRoutes.mainLineData);
-            setAlternativeRoutesLineData(
+            setPolylineDataRefInternal.current(processedRoutes.mainLineData);
+            setAlternativeRoutesLineDataRefInternal.current(
               processedRoutes.alternativeRoutesLineData,
             );
 
-            setActiveRoute(0);
+            setActiveRouteRefInternal.current(0);
             activeRouteRef.current = 0;
 
             startTimeRef.current = new Date();
@@ -244,7 +264,7 @@ export function useRerouting(nav: NavigationHookResult) {
             isReroutingRef.current = false;
             rerouteTimeoutRef.current = null;
           }
-        }, 1500);
+        }, 1000);
       }
     }
 
@@ -254,5 +274,18 @@ export function useRerouting(nav: NavigationHookResult) {
         rerouteTimeoutRef.current = null;
       }
     };
-  }, [routeStarted, navigationState.currentDirectionIndex]);
+  }, [
+    routeStarted,
+    navigationState,
+    activeRouteRef,
+    currentGpsLocRef,
+    isInitialReroutePerformed,
+    isReroutingRef,
+    lastFetchedAlternativesStep,
+    mapMatchStep,
+    routeDataRef,
+    snappedEdgeIDRef,
+    startTimeRef,
+    totalDistanceTraveledRef,
+  ]);
 }

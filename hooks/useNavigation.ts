@@ -24,6 +24,7 @@ export function useNavigation() {
   const animLat = useSharedValue(0);
   const animLon = useSharedValue(0);
   const animHeading = useSharedValue(0);
+  const animDuration = useSharedValue(1000);
 
   // MapLibre Camera Reference for direct control
   const cameraRef = useRef<any>(null);
@@ -208,7 +209,7 @@ export function useNavigation() {
         if (startLat !== undefined && startLon !== undefined) {
           await nativeMapMatcher.loadTile(startLat, startLon);
         }
-      } catch (error) {
+      } catch {
         showToast("Failed to initialize map matcher");
         setIsDirectionActive(false);
         setIsStartingNavigation(false);
@@ -226,22 +227,15 @@ export function useNavigation() {
       const usedRoute = routeDataRef.current?.[activeRouteRef.current];
       const firstRouteEdgeID =
         usedRoute?.driving_directions?.[0]?.edge_ids?.[0];
+      mapMatchStep.current = 1;
 
       if (firstRouteEdgeID) {
-        mapMatchStep.current = 1;
         // Convert original Graph edge ID to local graph index
         // The map matcher uses local IDs internally; the R-tree search returns local IDs
-        const localEdgeId = nativeMapMatcher.getLocalEdgeId(firstRouteEdgeID);
-        if (localEdgeId !== 1000000001) {
-          candidates.current = [
-            { edge_id: localEdgeId, weight: 1.0, length: 0 },
-          ];
-        } else {
-          // Edge not found in tile - start without seeded candidates
-          candidates.current = [];
-        }
+        candidates.current = [
+          { roadnetwork_edge_id: firstRouteEdgeID, weight: 1.0, length: 0 },
+        ];
       } else {
-        mapMatchStep.current = 1;
         candidates.current = [];
       }
     } else {
@@ -285,6 +279,7 @@ export function useNavigation() {
     animLat,
     animLon,
     animHeading,
+    animDuration,
     cameraRef,
     startTimeRef,
     totalDistanceTraveledRef,

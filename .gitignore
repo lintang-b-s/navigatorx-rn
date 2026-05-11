@@ -59,8 +59,19 @@ build.log
 # Tool-specific
 .agents/
 notes/
+modules/**/build/
 
 # Go/Wasm artifacts (if applicable)
 *.wasm
 pkg/mobile/mobile.aar
 pkg/mobile/mobile-sources.jar
+*.txt
+
+# Unignore binaries in modules for Git LFS tracking
+!modules/**/*.aar
+!modules/**/*.jar
+!modules/**/*.wasm
+!modules/**/*.so
+!modules/**/*.lib
+!modules/**/*.dll
+!modules/**/*.dylib

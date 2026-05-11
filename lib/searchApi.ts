@@ -58,7 +58,7 @@ export const fetchSearch = async (
     });
 
     return { data: places };
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch search results");
   }
 };
@@ -117,7 +117,7 @@ export const fetchReverseGeocoding = async ({
     } else {
       throw new Error("No results found");
     }
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch reverse geocoding results");
   }
 };

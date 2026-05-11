@@ -1,23 +1,3 @@
-Pod::Spec.new do |s|
-  s.name           = 'MapMatcher'
-  s.version        = '1.0.0'
-  s.summary        = 'A sample project summary'
-  s.description    = 'A sample project description'
-  s.author         = ''
-  s.homepage       = 'https://docs.expo.dev/modules/'
-  s.platforms      = {
-    :ios => '15.1',
-    :tvos => '15.1'
-  }
-  s.source         = { git: '' }
-  s.static_framework = true
-
-  s.dependency 'ExpoModulesCore'
-
-  # Swift/Objective-C compatibility
-  s.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-  }
-
-  s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
-end
+version https://git-lfs.github.com/spec/v1
+oid sha256:dd4164bae59ae9b2994c783d8ca6cc4a97c14a4f0978ed88bdb00b68aa28b071
+size 578

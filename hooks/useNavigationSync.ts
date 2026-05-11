@@ -67,7 +67,6 @@ export function useNavigationSync(nav: NavigationHookResult) {
     totalDistanceTraveledRef,
     mapMatchStep,
     hasArrived,
-    navigationState,
     setNavigationState,
     destinationLoc,
     setRouteStarted,
@@ -82,7 +81,6 @@ export function useNavigationSync(nav: NavigationHookResult) {
   } = nav;
 
   // Tracking refs for the sync logic (on JS thread)
-  const lastUpdateTimestamp = useRef(0);
   const lastLat = useRef(0);
   const lastLon = useRef(0);
   const lastH = useRef(0);

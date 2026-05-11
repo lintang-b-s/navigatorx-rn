@@ -1,19 +1,3 @@
-import type { StyleProp, ViewStyle } from 'react-native';
-
-export type OnLoadEventPayload = {
-  url: string;
-};
-
-export type MapMatcherModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
-};
-
-export type ChangeEventPayload = {
-  value: string;
-};
-
-export type MapMatcherViewProps = {
-  url: string;
-  onLoad: (event: { nativeEvent: OnLoadEventPayload }) => void;
-  style?: StyleProp<ViewStyle>;
-};
+version https://git-lfs.github.com/spec/v1
+oid sha256:fb0425e033549dd00cbce98d32bdc5f1b08c5481f9c8380b1e3bb0fdc5e5605b
+size 412

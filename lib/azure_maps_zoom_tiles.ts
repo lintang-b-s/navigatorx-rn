@@ -83,10 +83,10 @@ export class TileMath {
     zoom: number,
     tileSize: number,
   ): number[] {
-    var mapSize = this.MapSize(zoom, tileSize);
+    let mapSize = this.MapSize(zoom, tileSize);
 
-    var x = this.Clip(pixel[0], 0, mapSize - 1) / mapSize - 0.5;
-    var y = 0.5 - this.Clip(pixel[1], 0, mapSize - 1) / mapSize;
+    let x = this.Clip(pixel[0], 0, mapSize - 1) / mapSize - 0.5;
+    let y = 0.5 - this.Clip(pixel[1], 0, mapSize - 1) / mapSize;
 
     return [
       360 * x, //Longitude
@@ -106,19 +106,19 @@ export class TileMath {
     zoom: number,
     tileSize: number,
   ): number[] {
-    var latitude = this.Clip(position[1], this.MinLatitude, this.MaxLatitude);
-    var longitude = this.Clip(
+    let latitude = this.Clip(position[1], this.MinLatitude, this.MaxLatitude);
+    let longitude = this.Clip(
       position[0],
       this.MinLongitude,
       this.MaxLongitude,
     );
 
-    var x = (longitude + 180) / 360;
-    var sinLatitude = Math.sin((latitude * Math.PI) / 180);
-    var y =
+    let x = (longitude + 180) / 360;
+    let sinLatitude = Math.sin((latitude * Math.PI) / 180);
+    let y =
       0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI);
 
-    var mapSize = this.MapSize(zoom, tileSize);
+    let mapSize = this.MapSize(zoom, tileSize);
 
     return [
       this.Clip(x * mapSize + 0.5, 0, mapSize - 1),
@@ -153,7 +153,7 @@ export class TileMath {
     oldZoom: number,
     newZoom: number,
   ): number[] {
-    var scale = Math.pow(2, oldZoom - newZoom);
+    let scale = Math.pow(2, oldZoom - newZoom);
 
     return [pixel[0] * scale, pixel[1] * scale];
   }
@@ -170,10 +170,10 @@ export class TileMath {
     oldZoom: number,
     newZoom: number,
   ): number[][] {
-    var scale = Math.pow(2, oldZoom - newZoom);
+    let scale = Math.pow(2, oldZoom - newZoom);
 
-    var output: number[][] = [];
-    for (var i = 0, len = pixels.length; i < len; i++) {
+    let output: number[][] = [];
+    for (let i = 0, len = pixels.length; i < len; i++) {
       output.push([pixels[i][0] * scale, pixels[i][1] * scale]);
     }
 
@@ -207,16 +207,16 @@ export class TileMath {
     tileY: number,
     zoom: number,
   ): string {
-    var quadKey: number[] = [];
-    for (var i = zoom; i > 0; i--) {
-      var digit = 0;
-      var mask = 1 << (i - 1);
+    let quadKey: number[] = [];
+    for (let i = zoom; i > 0; i--) {
+      let digit = 0;
+      let mask = 1 << (i - 1);
 
-      if ((tileX & mask) != 0) {
+      if ((tileX & mask) !== 0) {
         digit++;
       }
 
-      if ((tileY & mask) != 0) {
+      if ((tileY & mask) !== 0) {
         digit += 2;
       }
 
@@ -235,12 +235,12 @@ export class TileMath {
     tileY: number;
     zoom: number;
   } {
-    var tileX = 0;
-    var tileY = 0;
-    var zoom = quadKey.length;
+    let tileX = 0;
+    let tileY = 0;
+    let zoom = quadKey.length;
 
-    for (var i = zoom; i > 0; i--) {
-      var mask = 1 << (i - 1);
+    for (let i = zoom; i > 0; i--) {
+      let mask = 1 << (i - 1);
       switch (quadKey[zoom - i]) {
         case "0":
           break;
@@ -282,20 +282,20 @@ export class TileMath {
     zoom: number,
     tileSize: number,
   ): { tileX: number; tileY: number } {
-    var latitude = this.Clip(position[1], this.MinLatitude, this.MaxLatitude);
-    var longitude = this.Clip(
+    let latitude = this.Clip(position[1], this.MinLatitude, this.MaxLatitude);
+    let longitude = this.Clip(
       position[0],
       this.MinLongitude,
       this.MaxLongitude,
     );
 
-    var x = (longitude + 180) / 360;
-    var sinLatitude = Math.sin((latitude * Math.PI) / 180);
-    var y =
+    let x = (longitude + 180) / 360;
+    let sinLatitude = Math.sin((latitude * Math.PI) / 180);
+    let y =
       0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI);
 
     //tileSize needed in calculations as in rare cases the multiplying/rounding/dividing can make the difference of a pixel which can result in a completely different tile.
-    var mapSize = this.MapSize(zoom, tileSize);
+    let mapSize = this.MapSize(zoom, tileSize);
 
     return {
       tileX: Math.floor(
@@ -323,19 +323,19 @@ export class TileMath {
     height: number,
     tileSize: number,
   ): string[] {
-    var p = this.PositionToGlobalPixel(position, zoom, tileSize);
+    let p = this.PositionToGlobalPixel(position, zoom, tileSize);
 
-    var top = p[1] - height * 0.5;
-    var left = p[0] - width * 0.5;
+    let top = p[1] - height * 0.5;
+    let left = p[0] - width * 0.5;
 
-    var bottom = p[1] + height * 0.5;
-    var right = p[0] + width * 0.5;
+    let bottom = p[1] + height * 0.5;
+    let right = p[0] + width * 0.5;
 
-    var tl = this.GlobalPixelToPosition([left, top], zoom, tileSize);
-    var br = this.GlobalPixelToPosition([right, bottom], zoom, tileSize);
+    let tl = this.GlobalPixelToPosition([left, top], zoom, tileSize);
+    let br = this.GlobalPixelToPosition([right, bottom], zoom, tileSize);
 
     //Bounding box in the format: [west, south, east, north];
-    var bounds = [tl[0], br[1], br[0], tl[1]];
+    let bounds = [tl[0], br[1], br[0], tl[1]];
 
     return this.GetQuadkeysInBoundingBox(bounds, zoom, tileSize);
   }
@@ -352,14 +352,14 @@ export class TileMath {
     zoom: number,
     tileSize: number,
   ): string[] {
-    var keys: string[] = [];
+    let keys: string[] = [];
 
-    if (bounds != null && bounds.length >= 4) {
-      var tl = this.PositionToTileXY([bounds[0], bounds[3]], zoom, tileSize);
-      var br = this.PositionToTileXY([bounds[2], bounds[1]], zoom, tileSize);
+    if (bounds !== null && bounds.length >= 4) {
+      let tl = this.PositionToTileXY([bounds[0], bounds[3]], zoom, tileSize);
+      let br = this.PositionToTileXY([bounds[2], bounds[1]], zoom, tileSize);
 
-      for (var x = tl.tileX; x <= br.tileX; x++) {
-        for (var y = tl.tileY; y <= br.tileY; y++) {
+      for (let x = tl.tileX; x <= br.tileX; x++) {
+        for (let y = tl.tileY; y <= br.tileY; y++) {
           keys.push(this.TileXYToQuadKey(x, y, zoom));
         }
       }
@@ -383,15 +383,15 @@ export class TileMath {
     tileSize: number,
   ): number[] {
     //Top left corner pixel coordinates
-    var x1 = tileX * tileSize;
-    var y1 = tileY * tileSize;
+    let x1 = tileX * tileSize;
+    let y1 = tileY * tileSize;
 
     //Bottom right corner pixel coordinates
-    var x2 = x1 + tileSize;
-    var y2 = y1 + tileSize;
+    let x2 = x1 + tileSize;
+    let y2 = y1 + tileSize;
 
-    var nw = this.GlobalPixelToPosition([x1, y1], zoom, tileSize);
-    var se = this.GlobalPixelToPosition([x2, y2], zoom, tileSize);
+    let nw = this.GlobalPixelToPosition([x1, y1], zoom, tileSize);
+    let se = this.GlobalPixelToPosition([x2, y2], zoom, tileSize);
 
     return [nw[0], se[1], se[0], nw[1]];
   }
@@ -418,7 +418,7 @@ export class TileMath {
   ): { center: number[]; zoom: number } {
     //Ensure valid bounds and map dimensions are provided.
     if (
-      bounds == null ||
+      bounds === null ||
       bounds.length < 4 ||
       !mapWidth ||
       !mapHeight ||

@@ -1,9 +1,12 @@
 import * as MapLibre from "@maplibre/maplibre-react-native";
 import React, { useState } from "react";
 import Animated, {
+  Easing,
   SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { SvgXml } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
@@ -21,41 +24,72 @@ interface CarMarkerProps {
   } | null>;
   animLat?: SharedValue<number>;
   animLon?: SharedValue<number>;
-  iconSource: any;
+  animDuration?: SharedValue<number>;
 }
 
 /**
  * High-performance Car Marker component using Reanimated.
- * Position is synced to the JS thread for MapLibre compatibility.
- * Heading is fixed at 0 as requested.
+ * Handles internal interpolation using the dynamic GPS duration.
  */
-export const CarMarker = ({ animLat, animLon }: CarMarkerProps) => {
-  // Use state for position since MapLibre.Marker isn't natively animatable via Reanimated props
-  const [position, setPosition] = useState<[number, number] | null>(() => {
-    if (animLat?.value && animLon?.value) {
-      return [animLon.value, animLat.value];
-    }
-    return null;
-  });
+export const CarMarker = ({
+  animLat,
+  animLon,
+  animDuration,
+}: CarMarkerProps) => {
+  // MapLibre.Marker lives on the JS thread, so we must use state for position.
+  const [position, setPosition] = useState<[number, number] | null>(null);
 
-  // Sync shared values to local state for MapLibre
+  // Internal interpolated values to ensure smoothness on the UI thread
+  const interpolatedLat = useSharedValue(0);
+  const interpolatedLon = useSharedValue(0);
+
+  // Sync initial values on mount safely outside of render
+  React.useEffect(() => {
+    if (animLat?.value && animLon?.value) {
+      interpolatedLat.value = animLat.value;
+      interpolatedLon.value = animLon.value;
+      setPosition([animLon.value, animLat.value]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 1. React to "Target" changes from the tracking hook
   useAnimatedReaction(
-    () => {
-      if (!animLat || !animLon) return null;
-      return [animLon.value, animLat.value] as [number, number];
-    },
-    (curr) => {
-      if (curr) {
-        scheduleOnRN(setPosition, curr);
-      }
+    () => ({
+      targetLat: animLat?.value ?? 0,
+      targetLon: animLon?.value ?? 0,
+      duration: animDuration?.value ?? 1000,
+    }),
+    (target) => {
+      // Smoothly glide toward the target using the calculated duration from GPS updates
+      interpolatedLat.value = withTiming(target.targetLat, {
+        duration: target.duration,
+        easing: Easing.linear,
+      });
+      interpolatedLon.value = withTiming(target.targetLon, {
+        duration: target.duration,
+        easing: Easing.linear,
+      });
     },
   );
 
-  // Animate the rotation of the icon on the UI thread
+  // 2. Bridge update: Sync interpolated position back to JS state
+  // Throttling removed as per user's last manual edit, but we monitor for performance.
+  useAnimatedReaction(
+    () => ({
+      lat: interpolatedLat.value,
+      lon: interpolatedLon.value,
+    }),
+    (curr) => {
+      scheduleOnRN(setPosition, [curr.lon, curr.lat]);
+    },
+  );
+
+  // Animate the rotation and visibility of the icon on the UI thread
   const animatedStyle = useAnimatedStyle(() => {
     const heading = 0; // Fixed heading as requested
-    const lat = animLat?.value ?? 0;
-    const lon = animLon?.value ?? 0;
+    const lat = interpolatedLat.value;
+    const lon = interpolatedLon.value;
 
     // Hide marker if coordinates are zero (uninitialized)
     const opacity = lat === 0 && lon === 0 ? 0 : 1;
@@ -66,7 +100,7 @@ export const CarMarker = ({ animLat, animLon }: CarMarkerProps) => {
     };
   });
 
-  if (!position || !animLat || !animLon) {
+  if (!position) {
     return null;
   }
 
