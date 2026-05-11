@@ -12,6 +12,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { MapComponent } from "../components/MapComponent";
+import { fetchBoundingBox } from "../lib/navigatorxApi";
 import { NavigationFooter } from "../components/NavigationFooter";
 import { RouterPanel } from "../components/RouterPanel";
 import { SearchBox } from "../components/SearchBox";
@@ -41,6 +42,35 @@ export default function NavigationScreen() {
 function NavigationScreenInner() {
   // --- Location Permission ---
   useLocationPermission();
+
+  const [boundingBoxGeoJSON, setBoundingBoxGeoJSON] = useState<any>(null);
+
+  useEffect(() => {
+    const getBoundingBox = async () => {
+      try {
+        const response = await fetchBoundingBox();
+        const { min_lat, min_lon, max_lat, max_lon } = response.data;
+
+        setBoundingBoxGeoJSON({
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [min_lon, min_lat],
+              [max_lon, min_lat],
+              [max_lon, max_lat],
+              [min_lon, max_lat],
+              [min_lon, min_lat],
+            ],
+          },
+        });
+      } catch (error) {
+        console.error("Failed to fetch bounding box:", error);
+      }
+    };
+    void getBoundingBox();
+  }, []);
 
   // --- Safe Area Insets ---
   const insets = useSafeAreaInsets();
@@ -295,6 +325,7 @@ function NavigationScreenInner() {
         onSelectDestination={nav.onSelectDestination}
         onUserLocationUpdateHandler={nav.handleUserLocationUpdate}
         safeAreaInsets={insets}
+        boundingBoxGeoJSON={boundingBoxGeoJSON}
       />
 
       {/* 2. Top UI: Search, Router Panel, or Turn Instructions */}
