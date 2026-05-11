@@ -1,6 +1,5 @@
 # Data files
 data/**/*.json filter=lfs diff=lfs merge=lfs -text
-
 # Global binary and large data patterns
 *.gpx filter=lfs diff=lfs merge=lfs -text
 *.csv filter=lfs diff=lfs merge=lfs -text
@@ -18,3 +17,5 @@ app.json !text !filter !merge !diff
 eas.json !text !filter !merge !diff
 tsconfig.json !text !filter !merge !diff
 package-lock.json !text !filter !merge !diff
+.agents/**/SKILL.md filter=lfs diff=lfs merge=lfs -text
+.agents/**/DESIGN.md filter=lfs diff=lfs merge=lfs -text
