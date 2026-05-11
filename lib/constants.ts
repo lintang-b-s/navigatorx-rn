@@ -16,7 +16,7 @@ export const UPDATE_TURN_INSTRUCTION_DISTANCE_MIN = 1 // meter
 // Map Matching Constants
 export const MAP_MATCHER_GEOHASH_PRECISION = 6;
 export const MAP_MATCHER_MAX_RETRIES = 4;
-export const MAP_MATCHER_RETRY_DELAY_MS = 500;
+export const MAP_MATCHER_RETRY_DELAY_MS = 10;
 export const BROWSER_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36";
 
 // Geographical Constants

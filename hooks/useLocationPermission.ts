@@ -50,15 +50,12 @@ export function useLocationPermission() {
           await Location.enableNetworkProviderAsync();
         } catch {
           // User may have declined - continue anyway
-          console.log(
-            "Network provider not enabled, using available providers",
-          );
         }
       }
 
       return true;
     } catch (error) {
-      console.error("Permission request error:", error);
+
       return false;
     }
   }, []);

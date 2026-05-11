@@ -1,12 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as MapLibre from "@maplibre/maplibre-react-native";
+import { CameraRef } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -35,7 +31,7 @@ export interface MapComponentProps {
   animLon?: any;
   animHeading?: any;
   animDuration?: any;
-  cameraRef?: React.RefObject<any>;
+  cameraRef?: React.RefObject<CameraRef | null>;
   triggerGeolocate?: number;
   boundingBoxGeoJSON?: any;
   rawGpsLoc?: Coord;
@@ -279,8 +275,7 @@ export const MapComponent = React.memo(function MapComponent({
     if (activeRoute === 0) {
       return lineData?.geometry?.coordinates;
     }
-    return alternativeRoutes?.[activeRoute || 0]?.geometry
-      ?.coordinates;
+    return alternativeRoutes?.[activeRoute || 0]?.geometry?.coordinates;
   }, [activeRoute, lineData, alternativeRoutes]);
 
   const spRouteGeoJSON = useMemo(() => {
@@ -296,17 +291,13 @@ export const MapComponent = React.memo(function MapComponent({
   }, [lineData]);
 
   const activeRouteGeoJSON = useMemo(() => {
-    if (
-      activeRoute === 0 ||
-      !alternativeRoutes?.[activeRoute || 0]
-    )
+    if (activeRoute === 0 || !alternativeRoutes?.[activeRoute || 0])
       return null;
     return {
       type: "Feature" as const,
       geometry: {
         type: "LineString" as const,
-        coordinates:
-          alternativeRoutes[activeRoute || 0].geometry.coordinates,
+        coordinates: alternativeRoutes[activeRoute || 0].geometry.coordinates,
       },
       properties: {},
     };
@@ -314,8 +305,7 @@ export const MapComponent = React.memo(function MapComponent({
 
   // Alternative routes (filter out active and main route)
   const alternativeRouteGeoJSONs = useMemo(() => {
-    if (!alternativeRoutes || alternativeRoutes.length === 0)
-      return [];
+    if (!alternativeRoutes || alternativeRoutes.length === 0) return [];
     return alternativeRoutes
       .filter((_, i) => i !== 0 && i !== activeRoute)
       .map((route, index) => ({
@@ -356,16 +346,10 @@ export const MapComponent = React.memo(function MapComponent({
         };
       },
     );
-  }, [
-    isDirectionActive,
-    routeDataCRP,
-    activeRoute,
-    activeRouteCoordinates,
-  ]);
+  }, [isDirectionActive, routeDataCRP, activeRoute, activeRouteCoordinates]);
 
   const gpsWindowGeoJSON = useMemo(() => {
-    if (!gpsWindowPoints || gpsWindowPoints.length === 0)
-      return null;
+    if (!gpsWindowPoints || gpsWindowPoints.length === 0) return null;
     return {
       type: "FeatureCollection" as const,
       features: gpsWindowPoints.map((p, i) => ({

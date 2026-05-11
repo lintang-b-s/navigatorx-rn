@@ -2,6 +2,7 @@ import * as Location from "expo-location";
 import { useEffect, useRef } from "react";
 import { Dimensions } from "react-native";
 
+import { CameraRef } from "@maplibre/maplibre-react-native";
 import {
   DEFAULT_CONSTANT_SPEED,
   INVALID_LAT,
@@ -56,7 +57,7 @@ interface UseLocationTrackingParams {
   animLon: any;
   animHeading: any;
   animDuration: any;
-  cameraRef: React.RefObject<any>;
+  cameraRef: React.RefObject<CameraRef | null>;
 }
 
 /**
@@ -313,7 +314,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
             cameraRef.current.easeTo({
               center: [matched.lon, matched.lat],
               bearing: targetHeading,
-              zoom: 17,
+              zoom: 16,
               duration: 1000,
               easing: "linear",
               padding: {
@@ -362,7 +363,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
             cameraRef.current.easeTo({
               center: [matched.lon, matched.lat],
               bearing: targetHContinuous,
-              zoom: 17,
+              zoom: 16,
               duration: duration * 1000,
               easing: "linear",
               padding: {
@@ -385,11 +386,6 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     const processGpsUpdate = async (location: {
       coords: { latitude: number; longitude: number; speed?: number | null };
     }) => {
-      console.log(
-        "[GPS] Raw update received:",
-        location.coords.latitude,
-        location.coords.longitude,
-      );
       if (!routeStarted) return;
 
       const currentTime = new Date();
@@ -446,6 +442,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       lastGpsUpdateTimeRef.current = Date.now();
       prevTimeRef.current = currentTime;
 
+      // async
       void nativeMapMatcher.loadTile(
         location.coords.latitude,
         location.coords.longitude,
@@ -460,7 +457,6 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         speedStdK.current,
         lastBearing.current,
       );
-      console.log("mapmatch response: ", resp);
 
       if (resp) handleMapMatchResponse(resp);
 
@@ -471,16 +467,12 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     };
 
     const startTracking = async () => {
-      console.log("[LocationTracking] Requesting permissions...");
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log("[LocationTracking] Permission status:", status);
 
       if (status !== "granted") {
-        console.error("[LocationTracking] Permission denied");
         return;
       }
 
-      console.log("[LocationTracking] Starting watchPositionAsync...");
       watchSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
@@ -488,17 +480,11 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
           distanceInterval: 1,
         },
         async (location) => {
-          // console.log("[LocationTracking] Callback fired!");
           processGpsUpdate(location);
         },
       );
-      console.log("[LocationTracking] Watcher active.");
     };
 
-    console.log(
-      "[LocationTracking] useEffect triggered, routeStarted:",
-      routeStarted,
-    );
     startTracking();
 
     return () => {

@@ -75,3 +75,5 @@ pkg/mobile/mobile-sources.jar
 !modules/**/*.lib
 !modules/**/*.dll
 !modules/**/*.dylib
+debug/
+

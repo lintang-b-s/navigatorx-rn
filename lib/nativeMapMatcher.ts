@@ -94,9 +94,7 @@ class NativeMapMatcher {
 
       this.isReady = true;
       this.isInitializing = false;
-      console.log("[NativeMapMatcher] Initialized successfully");
     } catch (error: any) {
-      console.error("[NativeMapMatcher] Init Error:", error);
       this.isInitializing = false;
       throw error;
     }
@@ -116,7 +114,6 @@ class NativeMapMatcher {
 
     // If already loading this exact tile, wait for it instead of skipping
     if (this.loadingTiles.has(gh)) {
-      console.log(`waiting graph to complete its rebuild, geohash tile ${gh}`);
       return this.currentTile === gh;
     }
 
@@ -134,9 +131,6 @@ class NativeMapMatcher {
       const startTime = Date.now();
       try {
         const cacheBuster = `?cb=${Date.now()}`;
-        console.log(
-          `[NativeMapMatcher] Fetching tile ${gh} (Attempt ${attempt}/${MAP_MATCHER_MAX_RETRIES})... `,
-        );
 
         const response = await fetch(
           `${this.apiUrl}/api/tile/${gh}${cacheBuster}`,
@@ -151,9 +145,6 @@ class NativeMapMatcher {
         );
 
         if (!response.ok) {
-          console.warn(
-            `[NativeMapMatcher] Tile ${gh} failed (Status ${response.status})`,
-          );
           // Don't retry if it's a client error (tile file not found or bad request)
           if (response.status === 400 || response.status === 404) {
             break;
@@ -164,22 +155,13 @@ class NativeMapMatcher {
         const tileBuffer = await response.arrayBuffer();
         tileData = new Uint8Array(tileBuffer);
         success = true;
-        console.log(
-          `[NativeMapMatcher] Tile ${gh} downloaded in ${Date.now() - startTime}ms`,
-        );
+
         break;
       } catch (error: any) {
         const duration = Date.now() - startTime;
         if (error.name === "AbortError") {
-          console.log(
-            `[NativeMapMatcher] Tile ${gh} fetch was aborted (new request requested) after ${duration}ms`,
-          );
           return false; // Exit if we aborted on purpose
         } else {
-          console.warn(
-            `[NativeMapMatcher] Tile ${gh} attempt ${attempt} error:`,
-            error.message,
-          );
         }
         await new Promise((r) => setTimeout(r, MAP_MATCHER_RETRY_DELAY_MS));
       }
@@ -199,16 +181,14 @@ class NativeMapMatcher {
         this.loadingTiles.delete(gh);
         return false;
       }
-      console.log(`[NativeMapMatcher] Rebuilding graph for tile ${gh}...`);
+
       MapMatcher.rebuildGraph(tileData);
       this.currentTile = gh;
       this.loadingTiles.delete(gh);
       return true;
     } catch (err) {
-      console.error(
-        `[NativeMapMatcher] Error rebuilding graph for tile ${gh}:`,
-        err,
-      );
+      
+      
       this.loadingTiles.delete(gh);
       return false;
     }

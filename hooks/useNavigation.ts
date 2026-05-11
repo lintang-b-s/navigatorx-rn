@@ -1,3 +1,5 @@
+import { CameraRef } from "@maplibre/maplibre-react-native";
+import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
@@ -27,7 +29,7 @@ export function useNavigation() {
   const animDuration = useSharedValue(1000);
 
   // MapLibre Camera Reference for direct control
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraRef | null>(null);
 
   // === Refs for high-frequency updates ===
   const isReroutingRef = useRef(false);
@@ -203,9 +205,10 @@ export function useNavigation() {
         await nativeMapMatcher.init();
 
         // Ensure the initial tile is loaded before tracking
-        const usedRoute = routeDataRef.current?.[activeRouteRef.current];
-        const startLat = usedRoute?.driving_directions?.[0]?.turn_point?.lat;
-        const startLon = usedRoute?.driving_directions?.[0]?.turn_point?.lon;
+
+        const startLat = currentGpsLocRef.current?.lat;
+        const startLon = currentGpsLocRef.current?.lon;
+
         if (startLat !== undefined && startLon !== undefined) {
           await nativeMapMatcher.loadTile(startLat, startLon);
         }
@@ -265,7 +268,40 @@ export function useNavigation() {
       ...prev,
       matchedGpsLoc: coord,
     }));
+
+    // Center camera on user
+    if (cameraRef.current) {
+      cameraRef.current.flyTo({
+        center: [lon, lat],
+        zoom: 15,
+        duration: 1000,
+      });
+    }
   }, []);
+
+  // Initial location fetch on app start
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          showToast("Location permission is required to show your position");
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
+        });
+
+        handleUserLocationUpdate(
+          location.coords.latitude,
+          location.coords.longitude,
+        );
+      } catch (error) {
+        console.error("[useNavigation] Initial location fetch failed:", error);
+      }
+    })();
+  }, [handleUserLocationUpdate]);
 
   return {
     // Refs (for high-frequency access by other hooks)

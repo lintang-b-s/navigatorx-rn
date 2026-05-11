@@ -1,6 +1,6 @@
-import { Place } from './searchApi';
-import { RouteCRPResponse } from './navigatorxApi';
-import { Coord } from './mapmatchApi';
+import { Coord } from "./mapmatchApi";
+import { RouteCRPResponse } from "./navigatorxApi";
+import { Place } from "./searchApi";
 
 export type LineData = {
   type: string;
@@ -8,11 +8,6 @@ export type LineData = {
     type: string;
     coordinates: number[][];
   };
-};
-
-export type UserLocation = {
-  latitude: number;
-  longitude: number;
 };
 
 export type NavigationState = {
