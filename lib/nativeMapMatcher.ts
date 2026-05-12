@@ -38,6 +38,7 @@ class NativeMapMatcher {
   private currentTile: string | null = null;
   private requestedTile: string | null = null;
   private loadingTiles = new Set<string>();
+  private pendingTiles = new Map<string, Promise<boolean>>();
 
   private abortController: AbortController | null = null;
 
@@ -109,88 +110,101 @@ class NativeMapMatcher {
     if (!this.isReady) return false;
 
     const gh = geohash.encode(lat, lon, MAP_MATCHER_GEOHASH_PRECISION);
+
+    // If already loaded, return immediately
     if (this.currentTile === gh) return false;
+
+    // If already loading this geohash, wait for the existing promise
+    const existingPromise = this.pendingTiles.get(gh);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    // Start new tile loading
+    const tilePromise = this.fetchAndRebuildTile(gh);
+    this.pendingTiles.set(gh, tilePromise);
+
+    try {
+      return await tilePromise;
+    } finally {
+      this.pendingTiles.delete(gh);
+    }
+  }
+
+  private async fetchAndRebuildTile(gh: string): Promise<boolean> {
+    this.loadingTiles.add(gh);
     this.requestedTile = gh;
 
-    // If already loading this exact tile, wait for it instead of skipping
-    if (this.loadingTiles.has(gh)) {
-      return this.currentTile === gh;
-    }
-
-    this.loadingTiles.add(gh);
-
-    let success = false;
-    let tileData: Uint8Array | null = null;
-
-    for (let attempt = 1; attempt <= MAP_MATCHER_MAX_RETRIES; attempt++) {
-      // Abort any existing fetch
-      if (this.abortController) this.abortController.abort();
-      this.abortController = new AbortController();
-      const currentController = this.abortController;
-
-      const startTime = Date.now();
-      try {
-        const cacheBuster = `?cb=${Date.now()}`;
-
-        const response = await fetch(
-          `${this.apiUrl}/api/tile/${gh}${cacheBuster}`,
-          {
-            signal: currentController.signal,
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              Accept: "*/*",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          // Don't retry if it's a client error (tile file not found or bad request)
-          if (response.status === 400 || response.status === 404) {
-            break;
-          }
-          continue;
-        }
-
-        const tileBuffer = await response.arrayBuffer();
-        tileData = new Uint8Array(tileBuffer);
-        success = true;
-
-        break;
-      } catch (error: any) {
-        const duration = Date.now() - startTime;
-        if (error.name === "AbortError") {
-          return false; // Exit if we aborted on purpose
-        } else {
-        }
-        await new Promise((r) => setTimeout(r, MAP_MATCHER_RETRY_DELAY_MS));
-      }
-    }
-
-    if (!success || !tileData) {
-      console.error(
-        `[NativeMapMatcher] Failed to load tile ${gh} after ${MAP_MATCHER_MAX_RETRIES} attempts.`,
-      );
-      this.loadingTiles.delete(gh);
-      return false;
-    }
-
-    // Process the successful download
     try {
+      let success = false;
+      let tileData: Uint8Array | null = null;
+
+      for (let attempt = 1; attempt <= MAP_MATCHER_MAX_RETRIES; attempt++) {
+        // Abort any existing fetch
+        if (this.abortController) this.abortController.abort();
+        this.abortController = new AbortController();
+        const currentController = this.abortController;
+
+        const startTime = Date.now();
+        try {
+          const cacheBuster = `?cb=${Date.now()}`;
+
+          const response = await fetch(
+            `${this.apiUrl}/api/tile/${gh}${cacheBuster}`,
+            {
+              signal: currentController.signal,
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                Accept: "*/*",
+              },
+            },
+          );
+
+          if (!response.ok) {
+            if (response.status === 400 || response.status === 404) {
+              break;
+            }
+            throw new Error(`Failed to fetch tile: ${response.statusText}`);
+          }
+
+          const tileBuffer = await response.arrayBuffer();
+          tileData = new Uint8Array(tileBuffer);
+          success = true;
+          break;
+        } catch (error: any) {
+          if (error.name === "AbortError") {
+            return false;
+          }
+          console.warn(
+            `[NativeMapMatcher] Attempt ${attempt} failed for tile ${gh}:`,
+            error.message,
+          );
+          await new Promise((r) => setTimeout(r, MAP_MATCHER_RETRY_DELAY_MS));
+        }
+      }
+
+      if (!success || !tileData) {
+        console.error(`[NativeMapMatcher] Failed to load tile ${gh}`);
+        return false;
+      }
+
       if (this.requestedTile !== gh) {
-        this.loadingTiles.delete(gh);
         return false;
       }
 
       MapMatcher.rebuildGraph(tileData);
+
       this.currentTile = gh;
-      this.loadingTiles.delete(gh);
       return true;
     } catch (err) {
-      
-      
-      this.loadingTiles.delete(gh);
+      console.error(
+        `[NativeMapMatcher] Error in fetchAndRebuildTile for ${gh}:`,
+        err,
+      );
       return false;
+    } finally {
+      this.loadingTiles.delete(gh);
     }
   }
 
@@ -212,6 +226,7 @@ class NativeMapMatcher {
       (gpsPoint.time instanceof Date ? gpsPoint.time.getTime() : Date.now()) /
         1000,
     );
+
 
     const resultJSON = MapMatcher.onlineMapMatch(
       {

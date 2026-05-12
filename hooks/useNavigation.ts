@@ -206,8 +206,10 @@ export function useNavigation() {
 
         // Ensure the initial tile is loaded before tracking
 
-        const startLat = currentGpsLocRef.current?.lat;
-        const startLon = currentGpsLocRef.current?.lon;
+        const startLat =
+          sourceLoc?.osm_object.lat ?? currentGpsLocRef.current?.lat;
+        const startLon =
+          sourceLoc?.osm_object.lon ?? currentGpsLocRef.current?.lon;
 
         if (startLat !== undefined && startLon !== undefined) {
           await nativeMapMatcher.loadTile(startLat, startLon);

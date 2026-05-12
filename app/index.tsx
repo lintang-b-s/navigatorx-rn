@@ -12,7 +12,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { MapComponent } from "../components/MapComponent";
-import { fetchBoundingBox } from "../lib/navigatorxApi";
 import { NavigationFooter } from "../components/NavigationFooter";
 import { RouterPanel } from "../components/RouterPanel";
 import { SearchBox } from "../components/SearchBox";
@@ -25,6 +24,7 @@ import { useNavigation } from "../hooks/useNavigation";
 import { useNavigationSync } from "../hooks/useNavigationSync";
 import { useRerouting } from "../hooks/useRerouting";
 import { useSearch } from "../hooks/useSearch";
+import { fetchBoundingBox } from "../lib/navigatorxApi";
 import { Place } from "../lib/searchApi";
 
 /**
@@ -126,8 +126,10 @@ function NavigationScreenInner() {
     nav.navigationState.matchedGpsLoc?.lat ?? nav.rawGpsLoc?.lat ?? -6.2;
   const searchLon =
     nav.navigationState.matchedGpsLoc?.lon ?? nav.rawGpsLoc?.lon ?? 106.8;
-  const { searchResults, search, clearResults, reverseGeocode } =
-    useSearch(searchLat, searchLon);
+  const { searchResults, search, clearResults, reverseGeocode } = useSearch(
+    searchLat,
+    searchLon,
+  );
 
   // Track which input is active for search results
   const [activeSearch, setActiveSearch] = useState<
@@ -347,7 +349,9 @@ function NavigationScreenInner() {
               routes={nav.routeData || []}
               activeRoute={nav.activeRoute}
               onSelectRoute={nav.handleRouteClick}
-              onStartNavigation={() => nav.handleStartRoute(true)}
+              onStartNavigation={async () => {
+                await nav.handleStartRoute(true);
+              }}
               onClose={() => nav.setRouteData(undefined)}
               onShowDirections={handleShowDirections}
               onShowDirectionsBack={handleShowDirectionsBack}
@@ -435,7 +439,9 @@ function NavigationScreenInner() {
               arrivalTime={arrivalTimeStr}
               durationMinutes={remainingMinutes}
               distanceKm={remainingDistanceKm}
-              onStop={() => nav.handleStartRoute(false)}
+              onStop={async () => {
+                await nav.handleStartRoute(false);
+              }}
             />
           </View>
         </>

@@ -9,8 +9,6 @@ import {
   INVALID_LON,
   MAX_ANIMATION_DURATION,
   MIN_ANIMATION_DURATION,
-  MIN_SPEED_THRESHOLD,
-  THROTTLE_DISTANCE_THRESHOLD,
 } from "../lib/constants";
 import { Candidate, Coord, Gps } from "../lib/mapmatchApi";
 import {
@@ -19,7 +17,7 @@ import {
 } from "../lib/nativeMapMatcher";
 import { isUserOffTheRoute } from "../lib/routing";
 import { NavigationState } from "../lib/types";
-import { haversineDistance, Lt } from "../lib/util";
+import { haversineDistance } from "../lib/util";
 
 interface UseLocationTrackingParams {
   routeStarted: boolean;
@@ -428,21 +426,10 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         dead_reckoning: false,
       };
 
-      // Speed threshold: skip if stationary (but not the first step)
-      if (
-        (Lt(speed, MIN_SPEED_THRESHOLD) ||
-          Lt(speedMeanK.current, MIN_SPEED_THRESHOLD)) &&
-        Lt(distance, THROTTLE_DISTANCE_THRESHOLD) &&
-        mapMatchStep.current > 1
-      ) {
-        return;
-      }
-
       // Update last GPS time for dead reckoning detection
       lastGpsUpdateTimeRef.current = Date.now();
       prevTimeRef.current = currentTime;
 
-      // async
       void nativeMapMatcher.loadTile(
         location.coords.latitude,
         location.coords.longitude,
