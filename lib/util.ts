@@ -109,6 +109,28 @@ export function mercatorDistanceKm(
 
 export { EPS };
 
-export function gt(a: number, b: number): boolean {
-  return a > b + EPS;
+// floating point comparison operators
+
+export function Eq(a: number, b: number): boolean {
+  return Math.abs(a - b) <= EPS;
+}
+
+export function EqEps(a: number, b: number, eps: number): boolean {
+  return Math.abs(a - b) <= eps;
+}
+
+export function Lt(a: number, b: number): boolean {
+  return a + EPS < b;
+}
+
+export function Le(a: number, b: number): boolean {
+  return a <= b + EPS;
+}
+
+export function Gt(a: number, b: number): boolean {
+  return Lt(b, a);
+}
+
+export function Ge(a: number, b: number): boolean {
+  return Le(b, a);
 }

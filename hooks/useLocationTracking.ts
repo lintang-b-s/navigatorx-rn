@@ -19,7 +19,7 @@ import {
 } from "../lib/nativeMapMatcher";
 import { isUserOffTheRoute } from "../lib/routing";
 import { NavigationState } from "../lib/types";
-import { haversineDistance } from "../lib/util";
+import { haversineDistance, Lt } from "../lib/util";
 
 interface UseLocationTrackingParams {
   routeStarted: boolean;
@@ -318,7 +318,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
               duration: 1000,
               easing: "linear",
               padding: {
-                top: screenHeight * (0.62),
+                top: screenHeight * 0.62,
                 bottom: 0,
                 left: 0,
                 right: 0,
@@ -367,7 +367,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
               duration: duration * 1000,
               easing: "linear",
               padding: {
-                top: screenHeight * (0.62),
+                top: screenHeight * 0.62,
                 bottom: 0,
                 left: 0,
                 right: 0,
@@ -430,9 +430,9 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
 
       // Speed threshold: skip if stationary (but not the first step)
       if (
-        (speed < MIN_SPEED_THRESHOLD ||
-          speedMeanK.current < MIN_SPEED_THRESHOLD) &&
-        distance < THROTTLE_DISTANCE_THRESHOLD &&
+        (Lt(speed, MIN_SPEED_THRESHOLD) ||
+          Lt(speedMeanK.current, MIN_SPEED_THRESHOLD)) &&
+        Lt(distance, THROTTLE_DISTANCE_THRESHOLD) &&
         mapMatchStep.current > 1
       ) {
         return;
@@ -473,11 +473,16 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         return;
       }
 
+      // ini expo-location pakai FusedLocationProvider android API see requestLocationUpdates dan AsyncFunction("watchPositionImplAsync")) : https://github.com/expo/expo/blob/main/packages/expo-location/android/src/main/java/expo/modules/location/LocationModule.kt
+      // locationRequest https://github.com/expo/expo/blob/main/packages/expo-location/android/src/main/java/expo/modules/location/LocationHelpers.kt
+      // industry best practices (update rate 1hz / watchPositionAsync timeInterval 1s): https://developer.tomtom.com/navigation/android/guides/navigation/map-matching
+      // dan https://docs.mapbox.com/archive/android/navigation/api/core/0.24.0/com/mapbox/services/android/navigation/v5/navigation/MapboxNavigation.html
+
       watchSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 500,
-          distanceInterval: 1,
+          timeInterval: 1000,
+          distanceInterval: 0,
         },
         async (location) => {
           processGpsUpdate(location);
