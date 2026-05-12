@@ -6,7 +6,7 @@ NavigatorX-rn is an experimental mobile navigation application built with React 
 
 ## Demo Video Previews
 
-| <a href="https://www.youtube.com/watch?v=z3GPaacAKAo"><img src="https://img.youtube.com/vi/z3GPaacAKAo/0.jpg" width="300" height="300" style="border-radius: 15px; object-fit: cover;" /></a> | <a href="https://www.youtube.com/watch?v=o7oelnnc_As"><img src="https://img.youtube.com/vi/o7oelnnc_As/0.jpg" width="300" height="300" style="border-radius: 15px; object-fit: cover;" /></a> |
+| <a href="https://www.youtube.com/watch?v=z3GPaacAKAo"><img src="https://img.youtube.com/vi/z3GPaacAKAo/0.jpg" width="300" height="300" style="border-radius: 15px; object-fit: cover;" /></a> | <a href="https://www.youtube.com/watch?v=YKw3FaLH5Fc"><img src="https://img.youtube.com/vi/YKw3FaLH5Fc/0.jpg" width="300" height="300" style="border-radius: 15px; object-fit: cover;" /></a> |
 | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
 |                                                                                     **Navigation Demo 1**                                                                                     |                                                                                     **Navigation Demo 2**                                                                                     |
 
