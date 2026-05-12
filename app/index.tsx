@@ -359,6 +359,8 @@ function NavigationScreenInner() {
               isFetchingRoutes={nav.isFetchingRoutes}
               isStartingNavigation={nav.isStartingNavigation}
               nowTime={nowTime}
+              userLocation={nav.rawGpsLoc}
+              sourceLocation={nav.sourceLoc}
             />
             {nav.isStartingNavigation && (
               <View className="px-6 py-2">

@@ -9,6 +9,10 @@ import {
     View,
 } from "react-native";
 import { RouteCRPResponse } from "../lib/navigatorxApi";
+import { Coord } from "../lib/mapmatchApi";
+import { Place } from "../lib/searchApi";
+import { haversineDistance, Lt } from "../lib/util";
+
 
 interface RouterPanelProps {
   routes: RouteCRPResponse[];
@@ -22,7 +26,10 @@ interface RouterPanelProps {
   isFetchingRoutes?: boolean;
   isStartingNavigation?: boolean;
   nowTime?: Date | null;
+  userLocation?: Coord | null;
+  sourceLocation?: Place | null;
 }
+
 
 export const RouterPanel = React.memo(function RouterPanel({
   routes,
@@ -36,7 +43,10 @@ export const RouterPanel = React.memo(function RouterPanel({
   isFetchingRoutes,
   isStartingNavigation,
   nowTime,
+  userLocation,
+  sourceLocation,
 }: RouterPanelProps) {
+
   const [showDirections, setShowDirections] = useState(false);
 
   const handleShowDirections = () => {
@@ -112,6 +122,21 @@ export const RouterPanel = React.memo(function RouterPanel({
     );
   }, [routes, activeRoute]);
 
+  const canNavigate = useMemo(() => {
+    if (!userLocation || !sourceLocation) return false;
+
+    const distInMeters =
+      haversineDistance(
+        userLocation.lat,
+        userLocation.lon,
+        sourceLocation.osm_object.lat,
+        sourceLocation.osm_object.lon,
+      ) * 1000;
+
+    return Lt(distInMeters, 500);
+  }, [userLocation, sourceLocation]);
+
+
   if (isFetchingRoutes) {
     return (
       <View
@@ -146,27 +171,30 @@ export const RouterPanel = React.memo(function RouterPanel({
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={onStartNavigation}
-            disabled={isStartingNavigation}
-            className="flex-row items-center bg-blue-500 px-3 py-2 rounded-lg active:bg-blue-600 disabled:bg-blue-400"
-          >
-            {isStartingNavigation ? (
-              <>
-                <ActivityIndicator size="small" color="white" />
-                <Text className="text-white text-sm font-bold ml-2">
-                  Starting
-                </Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="flash" size={18} color="white" />
-                <Text className="text-white text-sm font-bold ml-2">
-                  Navigate
-                </Text>
-              </>
-            )}
-          </Pressable>
+          {canNavigate && (
+            <Pressable
+              onPress={onStartNavigation}
+              disabled={isStartingNavigation}
+              className="flex-row items-center bg-blue-500 px-3 py-2 rounded-lg active:bg-blue-600 disabled:bg-blue-400"
+            >
+              {isStartingNavigation ? (
+                <>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text className="text-white text-sm font-bold ml-2">
+                    Starting
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="flash" size={18} color="white" />
+                  <Text className="text-white text-sm font-bold ml-2">
+                    Navigate
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
         </View>
 
         <ScrollView
@@ -232,27 +260,30 @@ export const RouterPanel = React.memo(function RouterPanel({
           <Text className="ml-4 text-base font-bold text-[#0a0a0a]">Rute</Text>
         </View>
 
-        <Pressable
-          onPress={onStartNavigation}
-          disabled={isStartingNavigation}
-          className="flex-row items-center bg-blue-500 px-3 py-2 rounded-lg active:bg-blue-600 disabled:bg-blue-400"
-        >
-          {isStartingNavigation ? (
-            <>
-              <ActivityIndicator size="small" color="white" />
-              <Text className="text-white text-sm font-bold ml-2">
-                Starting
-              </Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="flash" size={18} color="white" />
-              <Text className="text-white text-sm font-bold ml-2">
-                Navigate
-              </Text>
-            </>
-          )}
-        </Pressable>
+        {canNavigate && (
+          <Pressable
+            onPress={onStartNavigation}
+            disabled={isStartingNavigation}
+            className="flex-row items-center bg-blue-500 px-3 py-2 rounded-lg active:bg-blue-600 disabled:bg-blue-400"
+          >
+            {isStartingNavigation ? (
+              <>
+                <ActivityIndicator size="small" color="white" />
+                <Text className="text-white text-sm font-bold ml-2">
+                  Starting
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="flash" size={18} color="white" />
+                <Text className="text-white text-sm font-bold ml-2">
+                  Navigate
+                </Text>
+              </>
+            )}
+          </Pressable>
+        )}
+
       </View>
 
       <View style={{ maxHeight: 400 }}>
