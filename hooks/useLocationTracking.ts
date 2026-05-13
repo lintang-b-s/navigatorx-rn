@@ -491,7 +491,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
             prevGps.current.accuracy != null &&
             !isAccuracyGood(
               location.coords.speed,
-              GPS_INTERVAL_MS / 1000.0,
+              (location.timestamp - prevGps.current.time.getTime()) / 1000.0,
               prevGps.current.accuracy,
               prevGps.current.speed,
               location.coords.accuracy,
