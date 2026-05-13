@@ -5,6 +5,7 @@ import { Dimensions } from "react-native";
 import { CameraRef } from "@maplibre/maplibre-react-native";
 import {
   DEFAULT_CONSTANT_SPEED,
+  GPS_INTERVAL_MS,
   INVALID_LAT,
   INVALID_LON,
   MAX_ANIMATION_DURATION,
@@ -17,7 +18,7 @@ import {
 } from "../lib/nativeMapMatcher";
 import { isUserOffTheRoute } from "../lib/routing";
 import { NavigationState } from "../lib/types";
-import { haversineDistance } from "../lib/util";
+import { haversineDistance, isAccuracyGood } from "../lib/util";
 
 interface UseLocationTrackingParams {
   routeStarted: boolean;
@@ -382,7 +383,12 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
     };
 
     const processGpsUpdate = async (location: {
-      coords: { latitude: number; longitude: number; speed?: number | null };
+      coords: {
+        latitude: number;
+        longitude: number;
+        speed?: number | null;
+        accuracy?: number | null;
+      };
     }) => {
       if (!routeStarted) return;
 
@@ -424,6 +430,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         delta_time: mapMatchStep.current === 1 ? 0 : deltaTime,
         time: currentTime,
         dead_reckoning: false,
+        accuracy: location.coords.accuracy ?? null,
       };
 
       // Update last GPS time for dead reckoning detection
@@ -464,14 +471,34 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       // locationRequest https://github.com/expo/expo/blob/main/packages/expo-location/android/src/main/java/expo/modules/location/LocationHelpers.kt
       // industry best practices (update rate 1hz / watchPositionAsync timeInterval 1s): https://developer.tomtom.com/navigation/android/guides/navigation/map-matching
       // dan https://docs.mapbox.com/archive/android/navigation/api/core/0.24.0/com/mapbox/services/android/navigation/v5/navigation/MapboxNavigation.html
+      // mapsme pakai interval 500ms (minInterval nya 500ms/2): https://github.com/mapsme/omim/blob/master/android/src/com/mapswithme/maps/location/LocationHelper.java
+      // osmand pakai mininterval 500ms juga: https://github.com/osmandapp/OsmAnd/blob/master/OsmAnd/src/net/osmand/plus/helpers/GmsLocationServiceHelper.java
 
+      // idk ikut yang mana, tapi OsmAnd & maps.me pakai interval 500ms , default expo-location juga 500ms
+      // app maps.me dan OsmAnd di googleplay  (https://play.google.com/store/apps/details?id=com.mapswithme.maps.pro dan https://play.google.com/store/apps/details?id=net.osmand&hl=en) 
+      // review nya bagus & user nya banyak (legit). di code mereka juga ada filter gps by its accuracy, jadi kita ikutin aja wkwkwk
       watchSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 1000,
+          // timeInterval: 1000, 
           distanceInterval: 0,
         },
         async (location) => {
+          if (
+            location.coords.accuracy != null && // https://developer.android.com/reference/kotlin/android/location/Location#getaccuracy
+            location.coords.speed != null &&
+            prevGps.current &&
+            prevGps.current.accuracy != null &&
+            !isAccuracyGood(
+              location.coords.speed,
+              GPS_INTERVAL_MS / 1000.0,
+              prevGps.current.accuracy,
+              prevGps.current.speed,
+              location.coords.accuracy,
+            )
+          ) {
+            return;
+          }
           processGpsUpdate(location);
         },
       );

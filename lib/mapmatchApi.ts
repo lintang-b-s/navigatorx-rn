@@ -18,6 +18,7 @@ export interface Gps {
   speed: number;
   delta_time: number;
   dead_reckoning: boolean;
+  accuracy: number | null;
 }
 
 export interface MatchedGpsPoint {

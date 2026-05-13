@@ -1,4 +1,5 @@
 import {
+  DEFAULT_MIN_SPEED_MPS,
   EARTH_RADIUS_KM,
   EPS,
   EQUATORIAL_RADIUS_METERS,
@@ -30,7 +31,6 @@ export function getArrivalTime(
 
   return `${hours}:${minuteStr} ${ampm}`;
 }
-
 
 function toRadians(deg: number): number {
   return deg * (Math.PI / 180);
@@ -133,4 +133,19 @@ export function Gt(a: number, b: number): boolean {
 
 export function Ge(a: number, b: number): boolean {
   return Le(b, a);
+}
+
+export function isAccuracyGood(
+  gpsSpeed: number,
+  timeDiff: number, // timeDiff in seconds
+  lastAccuracy: number,
+  lastGpsSpeed: number,
+  accuracy: number,
+) {
+  const speed = Math.max(
+    DEFAULT_MIN_SPEED_MPS,
+    (gpsSpeed + lastGpsSpeed) / 2.0,
+  );
+  const lastAccuracyGreater = lastAccuracy + speed * timeDiff;
+  return Lt(accuracy, lastAccuracyGreater);
 }

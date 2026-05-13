@@ -28,3 +28,6 @@ export const TRUNCATE_STRING_DEFAULT_LENGTH = 30;
 // API Constants
 export const INVALID_EDGE_ID = 1000000001;
 export const ALTERNATIVE_ROUTES_COUNT = 2;
+
+export const DEFAULT_MIN_SPEED_MPS = 5;
+export const GPS_INTERVAL_MS = 500;
