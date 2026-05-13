@@ -149,3 +149,4 @@ export function isAccuracyGood(
   const lastAccuracyGreater = lastAccuracy + speed * timeDiff;
   return Lt(accuracy, lastAccuracyGreater);
 }
+

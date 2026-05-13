@@ -5,11 +5,12 @@ import { Dimensions } from "react-native";
 import { CameraRef } from "@maplibre/maplibre-react-native";
 import {
   DEFAULT_CONSTANT_SPEED,
-  GPS_INTERVAL_MS,
   INVALID_LAT,
   INVALID_LON,
   MAX_ANIMATION_DURATION,
   MIN_ANIMATION_DURATION,
+  SECOND_MAPMATCHING_DISTANCE_METERS_THRESHOLD,
+  SECOND_MAPMATCHING_SPEED_MPS_THRESHOLD,
 } from "../lib/constants";
 import { Candidate, Coord, Gps } from "../lib/mapmatchApi";
 import {
@@ -18,7 +19,7 @@ import {
 } from "../lib/nativeMapMatcher";
 import { isUserOffTheRoute } from "../lib/routing";
 import { NavigationState } from "../lib/types";
-import { haversineDistance, isAccuracyGood } from "../lib/util";
+import { haversineDistance, isAccuracyGood, Lt } from "../lib/util";
 
 interface UseLocationTrackingParams {
   routeStarted: boolean;
@@ -411,7 +412,7 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
             prevGps.current.lon,
             location.coords.latitude,
             location.coords.longitude,
-          ) * 1000;
+          ) * 1000; // in meters
       }
 
       if (
@@ -421,6 +422,14 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
         speed = location.coords.speed;
       } else if (deltaTime > 0) {
         speed = distance / deltaTime;
+      }
+
+      if (
+        mapMatchStep.current == 1 &&
+        (Lt(distance, SECOND_MAPMATCHING_DISTANCE_METERS_THRESHOLD) ||
+          Lt(speed, SECOND_MAPMATCHING_SPEED_MPS_THRESHOLD))
+      ) {
+        return;
       }
 
       const currentGps: Gps = {
@@ -475,12 +484,12 @@ export function useLocationTracking(params: UseLocationTrackingParams) {
       // osmand pakai mininterval 500ms juga: https://github.com/osmandapp/OsmAnd/blob/master/OsmAnd/src/net/osmand/plus/helpers/GmsLocationServiceHelper.java
 
       // idk ikut yang mana, tapi OsmAnd & maps.me pakai interval 500ms , default expo-location juga 500ms
-      // app maps.me dan OsmAnd di googleplay  (https://play.google.com/store/apps/details?id=com.mapswithme.maps.pro dan https://play.google.com/store/apps/details?id=net.osmand&hl=en) 
+      // app maps.me dan OsmAnd di googleplay  (https://play.google.com/store/apps/details?id=com.mapswithme.maps.pro dan https://play.google.com/store/apps/details?id=net.osmand&hl=en)
       // review nya bagus & user nya banyak (legit). di code mereka juga ada filter gps by its accuracy, jadi kita ikutin aja wkwkwk
       watchSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          // timeInterval: 1000, 
+          // timeInterval: 1000,
           distanceInterval: 0,
         },
         async (location) => {
